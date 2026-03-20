@@ -1,0 +1,14 @@
+[package]
+name = "reverse-depends-ng-poc"
+version = "0.1.0"
+authors = ["Max Gilmour <max.gilmour@canonical.com>"]
+edition = "2024"
+description = "List the reverse-dependencies (or build-dependencies) of a package"
+readme = "README.md"
+homepage = "https://github.com/maxgmr/reverse-depends-ng-poc"
+repository = "https://github.com/maxgmr/reverse-depends-ng-poc"
+license = "GPL-3.0"
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+serde = "1.0"
