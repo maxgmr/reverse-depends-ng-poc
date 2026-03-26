@@ -48,8 +48,8 @@ pub struct Args {
     pub build_depends: bool,
     /// Query dependencies in ARCH, or `source` for build dependencies.
     /// Default `any` queries all architectures.
-    #[arg(short, long, default_value_t = String::from(ARCH_DEFAULT))]
-    pub arch: String,
+    #[arg(short, long, default_value = ARCH_DEFAULT)]
+    pub arch: Vec<String>,
     /// Skip ports architectures.
     #[arg(long = "no-parts", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
