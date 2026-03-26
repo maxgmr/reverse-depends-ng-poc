@@ -1,5 +1,6 @@
 //! This module contains CLI argument handling.
 
+use crate::Vendor;
 use clap::Parser;
 
 const ARCH_DEFAULT: &str = "any";
@@ -16,19 +17,18 @@ const ARCH_DEFAULT: &str = "any";
 /// and the Rust crate ecosystem's use of `Provides` in build
 /// dependencies.
 #[derive(Parser, Debug)]
-#[command(name = "reverse-depends", author, version, about, long_about = None)]
+#[command(name = "reverse-depends", author, about, long_about = None)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Args {
     /// Package to query (prefix with `src:` for source packages)
     pub package: String,
-    /// Query dependencies in RELEASE (default: current devel release)
+    /// Query dependencies in RELEASE [default: current devel release]
     #[arg(short, long)]
     pub release: Option<String>,
-    /// Distro to check (default: ubuntu; supported: ubuntu, debian)
-    #[arg(short = 'V', long, default_value_t = String::from("ubuntu"))]
-    pub vendor: String,
-    /// Ignore Recommends relationships. By default, Recommends are
-    /// included along with Depends.
+    /// Distro to check
+    #[arg(short = 'V', long, value_enum, default_value_t = Vendor::Ubuntu)]
+    pub vendor: Vendor,
+    /// Ignore Recommends relationships
     #[arg(short = 'R', long = "without-recommends", action = clap::ArgAction::SetFalse)]
     pub recommends: bool,
     /// Also consider Suggests relationships.
@@ -42,7 +42,6 @@ pub struct Args {
     #[arg(short, long = "build-depends")]
     pub build_depends: bool,
     /// Query dependencies in ARCH, or `source` for build dependencies.
-    /// Default `any` queries all architectures.
     #[arg(short, long, default_value = ARCH_DEFAULT)]
     pub arch: Vec<String>,
     /// Skip ports architectures.

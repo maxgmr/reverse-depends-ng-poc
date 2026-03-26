@@ -18,5 +18,6 @@ async fn run(args: Args) -> anyhow::Result<()> {
         Some(r) => r,
         None => &detect_devel_release()?,
     };
+    dbg!(&args);
     todo!()
 }

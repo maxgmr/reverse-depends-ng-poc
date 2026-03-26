@@ -12,8 +12,10 @@
 
 use anyhow::{Context, anyhow};
 
+mod archive;
 mod args;
 
+pub use archive::*;
 pub use args::Args;
 
 /// Detect the current development release by using
