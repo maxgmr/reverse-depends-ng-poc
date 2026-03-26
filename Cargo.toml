@@ -10,3 +10,4 @@ repository = "https://github.com/maxgmr/reverse-depends-ng-poc"
 license = "GPL-3.0"
 
 [dependencies]
+clap = { version = "4.6", features = ["derive"] }
