@@ -2,11 +2,10 @@
 
 use clap::Parser;
 
-const ARCHIVE_BASE_DEFAULT: &str = "http://archive.ubuntu.com/ubuntu";
 const ARCH_DEFAULT: &str = "any";
 
 #[allow(clippy::doc_markdown)]
-/// List reverse-dependencies of an Ubuntu package.
+/// List reverse-dependencies of an Ubuntu/Debian package.
 ///
 /// If PACKAGE is prefixed with `src:`, the reverse-dependencies of all
 /// binary packages produced by that source package will be listed.
@@ -16,10 +15,6 @@ const ARCH_DEFAULT: &str = "any";
 /// This correctly handles virtual packages, `Provides:` declarations,
 /// and the Rust crate ecosystem's use of `Provides` in build
 /// dependencies.
-///
-/// Archives queried by default:
-/// - `<http://archive.ubuntu.com/ubuntu>`      (amd64, i386)
-/// - `<http://ports.ubuntu.com/ubuntu-ports>`  (arm64, armhf, ppc64el, riscv64, s390x)
 #[derive(Parser, Debug)]
 #[command(name = "reverse-depends", author, version, about, long_about = None)]
 #[allow(clippy::struct_excessive_bools)]
@@ -29,9 +24,6 @@ pub struct Args {
     /// Query dependencies in RELEASE (default: current devel release)
     #[arg(short, long)]
     pub release: Option<String>,
-    /// Archive base directory or URL (default: Ubuntu archive URL)
-    #[arg(short = 'B', long = "archive-base", default_value_t = String::from(ARCHIVE_BASE_DEFAULT))]
-    pub archive_base: String,
     /// Distro to check (default: ubuntu; supported: ubuntu, debian)
     #[arg(short = 'V', long, default_value_t = String::from("ubuntu"))]
     pub vendor: String,
