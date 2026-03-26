@@ -32,6 +32,9 @@ pub struct Args {
     /// Archive base directory or URL (default: Ubuntu archive URL)
     #[arg(short = 'B', long = "archive-base", default_value_t = String::from(ARCHIVE_BASE_DEFAULT))]
     pub archive_base: String,
+    /// Distro to check (default: ubuntu; supported: ubuntu, debian)
+    #[arg(short = 'V', long, default_value_t = String::from("ubuntu"))]
+    pub vendor: String,
     /// Ignore Recommends relationships. By default, Recommends are
     /// included along with Depends.
     #[arg(short = 'R', long = "without-recommends", action = clap::ArgAction::SetFalse)]
