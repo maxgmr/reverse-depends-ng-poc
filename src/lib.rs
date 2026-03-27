@@ -18,7 +18,7 @@ mod parsing;
 mod vendor;
 
 pub use archive::*;
-pub use args::Args;
+pub use args::*;
 pub use parsing::*;
 pub use vendor::*;
 
