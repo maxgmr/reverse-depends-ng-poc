@@ -58,4 +58,13 @@ impl Vendor {
             Self::Ubuntu => &["main", "restricted", "universe", "multiverse"],
         }
     }
+
+    /// Get the pockets supported by this vendor.
+    #[must_use]
+    pub fn pockets(&self) -> &'static [&'static str] {
+        match self {
+            Self::Debian => &["", "-updates", "-backports"],
+            Self::Ubuntu => &["", "-updates", "-security", "-backports"],
+        }
+    }
 }

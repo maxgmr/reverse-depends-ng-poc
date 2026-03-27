@@ -50,6 +50,8 @@ pub struct Args {
     /// Only consider reverse dependencies in COMPONENT (repeatable).
     #[arg(short, long = "component")]
     pub components: Vec<String>,
+    // TODO add proposed argument
+    // TODO add "only consider reverse dependencies in POCKET (repeatable)"
     /// Display a simple, machine-readable list.
     #[arg(short, long)]
     pub list: bool,
