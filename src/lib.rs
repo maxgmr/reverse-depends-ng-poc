@@ -14,10 +14,12 @@ use anyhow::{Context, anyhow};
 
 mod archive;
 mod args;
+mod parsing;
 mod vendor;
 
 pub use archive::*;
 pub use args::Args;
+pub use parsing::*;
 pub use vendor::*;
 
 /// Detect the current development release by using
