@@ -1,20 +1,106 @@
 //! All functionality related to querying the archive.
 
-use std::sync::Arc;
+use std::{io::Read, sync::Arc};
 
-use crate::{Args, SourcePackage};
+use crate::{Args, SourcePackage, get_selected_components, parse_source_packages};
 
+use anyhow::Context;
+use flate2::read::GzDecoder;
+use futures::future::join_all;
 use reqwest::Client;
 use tokio::sync::Semaphore;
 
 /// Max number of requests at one time.
 const MAX_CONCURRENT: usize = 16;
 
+/// Fetch the source packages of the given component and pocket combos
+/// for the given distro release. If successful, this function will
+/// return a list of [`SourcePackage`]s, which denote all the source
+/// packages and their build dependencies.
+///
+/// # Errors
+///
+/// This function returns an [`anyhow::Error`] in the following
+/// situations:
+///
+/// - No valid components or pockets for the given distro were given.
+/// - There was a failure fetching Sources.gz from the distro archive.
+/// - The downloaded Sources.gz was an invalid format; i.e., not
+///   [DEB822](https://repolib.readthedocs.io/en/latest/deb822-format.html).
+/// - A Tokio task panicked or got cancelled.
+#[allow(clippy::missing_panics_doc)]
 pub async fn fetch_sources(
     client: &Client,
     release: &str,
     args: &Args,
 ) -> anyhow::Result<Vec<SourcePackage>> {
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT));
-    todo!();
+    let mut handles = Vec::new();
+
+    let archive_base = args.vendor.archive();
+
+    for pocket in args.vendor.pockets() {
+        for component in get_selected_components(args)? {
+            let url =
+                format!("{archive_base}/dists/{release}{pocket}/{component}/source/Sources.gz");
+            let client = client.clone();
+            let sem = Arc::clone(&sem);
+
+            handles.push(tokio::spawn(async move {
+                let _permit = sem.acquire().await.expect("semaphore closed");
+
+                let text = fetch_gz(&client, &url)
+                    .await
+                    .with_context(|| format!("Failed to fetch Sources.gz from {url}"))?;
+                // If text is empty, then that component just doesn't
+                // exist for that release.
+                if text.is_empty() {
+                    return Ok(Vec::new());
+                }
+
+                let packages =
+                    parse_source_packages(&text, component, pocket).with_context(|| {
+                        format!("Failed to parse downloaded Sources.gz for {component} in {pocket}")
+                    })?;
+
+                Ok::<_, anyhow::Error>(packages)
+            }));
+        }
+    }
+
+    let mut all_packages = Vec::new();
+
+    for handle_result in join_all(handles).await {
+        let inner_result = handle_result.context("Tokio task panicked or was cancelled")?;
+        let packages = inner_result?;
+        all_packages.extend(packages);
+    }
+
+    Ok(all_packages)
+}
+
+/// Download a `.gz` URL and return its decompressed content as a `String`.
+async fn fetch_gz(client: &Client, url: &str) -> anyhow::Result<String> {
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .with_context(|| format!("GET {url}"))?;
+
+    if !response.status().is_success() {
+        anyhow::bail!("HTTP {} for {url}", response.status());
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .with_context(|| format!("Failed to read body of {url}"))?;
+
+    let mut decoder = GzDecoder::new(bytes.as_ref());
+    let mut text = String::new();
+    decoder
+        .read_to_string(&mut text)
+        .with_context(|| format!("Failed to decompress {url}"))?;
+
+    Ok(text)
 }

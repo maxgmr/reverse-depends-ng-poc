@@ -1,3 +1,4 @@
+use anyhow::Context;
 use clap::Parser;
 use reverse_depends_ng_poc::{Args, detect_devel_release, fetch_sources};
 
@@ -22,9 +23,16 @@ async fn run(args: Args) -> anyhow::Result<()> {
     };
     dbg!(&args);
 
-    let client = reqwest::Client::builder().user_agent(USER_AGENT).build()?;
+    let client = reqwest::Client::builder()
+        .no_gzip()
+        .user_agent(USER_AGENT)
+        .build()?;
 
-    let sources = fetch_sources(&client, release, &args).await;
+    let sources = fetch_sources(&client, release, &args)
+        .await
+        .with_context(|| "Failed to fetch sources")?;
+
+    dbg!(&sources);
 
     todo!()
 }

@@ -68,3 +68,15 @@ impl Vendor {
         }
     }
 }
+impl std::fmt::Display for Vendor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Debian => "debian",
+                Self::Ubuntu => "ubuntu",
+            }
+        )
+    }
+}
