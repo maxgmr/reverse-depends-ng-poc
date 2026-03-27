@@ -1,5 +1,7 @@
 //! This module contains CLI argument handling.
 
+use std::collections::HashSet;
+
 use crate::Vendor;
 
 use clap::Parser;
@@ -45,7 +47,7 @@ pub struct Args {
     /// Query dependencies in ARCH, or `source` for build dependencies
     /// (repeatable).
     #[arg(short, long, default_value = ARCH_DEFAULT)]
-    pub arch: Vec<String>,
+    pub arches: Vec<String>,
     /// Skip ports architectures.
     #[arg(long = "no-parts", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
@@ -79,15 +81,57 @@ impl Args {
     #[must_use]
     pub fn need_source_packages(&self) -> bool {
         self.build_depends
-            || self.arch.iter().any(|s| s == "source")
+            || self.arches.iter().any(|s| s == "source")
             || self.package.starts_with("src:")
     }
 
-    /// Returns `true` if and only if fetching binary packages is
-    /// required.
+    /// Returns the set of [`ArchSearchCombo`]s to query for the
+    /// chosen list of architectures for the given release.
     #[must_use]
-    pub fn need_binary_packages(&self) -> bool {
-        !self.build_depends && !self.arch.iter().any(|s| s == "source")
+    pub fn needed_arch_searches(&self, release: &str) -> HashSet<ArchSearchCombo<'_>> {
+        let mut combos = HashSet::new();
+
+        for arch in &self.arches {
+            match arch.as_str() {
+                "any" => {
+                    // Search for all primary and ports arches
+                    for arch in self.vendor.primary_arches() {
+                        combos.insert(ArchSearchCombo::new(self.vendor.archive(), arch));
+                    }
+                    for arch in self.vendor.ports_arches(release) {
+                        combos.insert(ArchSearchCombo::new(self.vendor.ports(), arch));
+                    }
+                }
+                // No binary package lists to search for source
+                "source" => (),
+                a => {
+                    // Route the arch to whichever archive carries it
+                    let base_url = if self.vendor.ports_arches(release).contains(&a) {
+                        self.vendor.ports()
+                    } else {
+                        self.vendor.archive()
+                    };
+                    combos.insert(ArchSearchCombo::new(base_url, a));
+                }
+            }
+        }
+
+        combos
+    }
+}
+
+/// A specific set of values to use in a binary package search: the
+/// base archive URL of the search and the associated architecture.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ArchSearchCombo<'a> {
+    /// The base archive URL of the search.
+    pub base_url: &'a str,
+    /// The architecture of the search.
+    pub arch: &'a str,
+}
+impl<'a> ArchSearchCombo<'a> {
+    fn new(base_url: &'a str, arch: &'a str) -> Self {
+        Self { base_url, arch }
     }
 }
 
