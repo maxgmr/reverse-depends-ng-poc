@@ -42,7 +42,8 @@ pub struct Args {
     /// Equivalent to `--arch=source`.
     #[arg(short, long = "build-depends")]
     pub build_depends: bool,
-    /// Query dependencies in ARCH, or `source` for build dependencies.
+    /// Query dependencies in ARCH, or `source` for build dependencies
+    /// (repeatable).
     #[arg(short, long, default_value = ARCH_DEFAULT)]
     pub arch: Vec<String>,
     /// Skip ports architectures.
@@ -71,6 +72,22 @@ impl Args {
     pub fn selected_components(&self) -> anyhow::Result<Vec<&'static str>> {
         #[allow(clippy::used_underscore_items)]
         _selected_components(self.vendor.components(), &self.components)
+    }
+
+    /// Returns `true` if and only if fetching source packages is
+    /// required.
+    #[must_use]
+    pub fn need_source_packages(&self) -> bool {
+        self.build_depends
+            || self.arch.iter().any(|s| s == "source")
+            || self.package.starts_with("src:")
+    }
+
+    /// Returns `true` if and only if fetching binary packages is
+    /// required.
+    #[must_use]
+    pub fn need_binary_packages(&self) -> bool {
+        !self.build_depends && !self.arch.iter().any(|s| s == "source")
     }
 }
 

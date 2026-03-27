@@ -21,6 +21,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         Some(r) => r,
         None => &detect_devel_release()?,
     };
+    // TODO debug
     dbg!(&args);
 
     let client = reqwest::Client::builder()
@@ -28,11 +29,15 @@ async fn run(args: Args) -> anyhow::Result<()> {
         .user_agent(USER_AGENT)
         .build()?;
 
-    let sources = fetch_sources(&client, release, &args)
-        .await
-        .with_context(|| "Failed to fetch sources")?;
+    let source_packages = if args.need_source_packages() {
+        fetch_sources(&client, release, &args)
+            .await
+            .with_context(|| "Failed to fetch sources")?
+    } else {
+        Vec::new()
+    };
 
-    dbg!(&sources);
+    dbg!(&source_packages);
 
     todo!()
 }
