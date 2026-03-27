@@ -14,9 +14,11 @@ use anyhow::{Context, anyhow};
 
 mod archive;
 mod args;
+mod vendor;
 
 pub use archive::*;
 pub use args::Args;
+pub use vendor::*;
 
 /// Detect the current development release by using
 /// [`distro-info(1)`](https://manpages.debian.org/unstable/distro-info/distro-info.1.en.html).
