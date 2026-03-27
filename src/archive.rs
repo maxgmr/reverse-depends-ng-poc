@@ -2,7 +2,7 @@
 
 use std::{io::Read, sync::Arc};
 
-use crate::{Args, SourcePackage, get_selected_components, parse_source_packages};
+use crate::{Args, SourcePackage, parse_source_packages};
 
 use anyhow::Context;
 use flate2::read::GzDecoder;
@@ -40,7 +40,7 @@ pub async fn fetch_sources(
     let archive_base = args.vendor.archive();
 
     for pocket in args.vendor.pockets() {
-        for component in get_selected_components(args)? {
+        for component in args.selected_components()? {
             let url =
                 format!("{archive_base}/dists/{release}{pocket}/{component}/source/Sources.gz");
             let client = client.clone();

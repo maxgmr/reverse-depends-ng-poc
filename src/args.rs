@@ -57,24 +57,25 @@ pub struct Args {
     #[arg(short, long)]
     pub list: bool,
 }
-
-/// Get the list of components in the selected [`Vendor`] which
-/// were selected by [`Args::components`].
-///
-/// If [`Args::components`] is empty, then all components in the
-/// selected [`Vendor`] are selected.
-///
-/// # Errors
-///
-/// This function returns an [`anyhow::Error`] if the returned list is
-/// empty.
-pub fn get_selected_components(args: &Args) -> anyhow::Result<Vec<&'static str>> {
-    #[allow(clippy::used_underscore_items)]
-    _get_selected_components(args.vendor.components(), &args.components)
+impl Args {
+    /// Get the list of components in the selected [`Vendor`] which
+    /// were selected by [`Args::components`].
+    ///
+    /// If [`Args::components`] is empty, then all components in the
+    /// selected [`Vendor`] are selected.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an [`anyhow::Error`] if the returned list is
+    /// empty.
+    pub fn selected_components(&self) -> anyhow::Result<Vec<&'static str>> {
+        #[allow(clippy::used_underscore_items)]
+        _selected_components(self.vendor.components(), &self.components)
+    }
 }
 
 /// Helper to make testing easier
-fn _get_selected_components(
+fn _selected_components(
     vendor_components: &'static [&'static str],
     arg_components: &[String],
 ) -> anyhow::Result<Vec<&'static str>> {
@@ -107,7 +108,7 @@ mod tests {
     #[test]
     fn all_ubuntu_components() {
         assert_eq!(
-            _get_selected_components(Vendor::Ubuntu.components(), &[]).unwrap(),
+            _selected_components(Vendor::Ubuntu.components(), &[]).unwrap(),
             Vendor::Ubuntu.components()
         );
     }
@@ -115,14 +116,14 @@ mod tests {
     #[test]
     fn all_debian_components() {
         assert_eq!(
-            _get_selected_components(Vendor::Debian.components(), &[]).unwrap(),
+            _selected_components(Vendor::Debian.components(), &[]).unwrap(),
             Vendor::Debian.components()
         );
     }
 
     #[test]
     fn invalid_components() {
-        _get_selected_components(
+        _selected_components(
             Vendor::Ubuntu.components(),
             &[String::from("nonexistent component")],
         )
@@ -132,7 +133,7 @@ mod tests {
     #[test]
     fn some_ubuntu_components() {
         assert_eq!(
-            _get_selected_components(
+            _selected_components(
                 Vendor::Ubuntu.components(),
                 &[String::from("main"), String::from("restricted")]
             )
@@ -144,7 +145,7 @@ mod tests {
     #[test]
     fn one_valid_component() {
         assert_eq!(
-            _get_selected_components(
+            _selected_components(
                 Vendor::Debian.components(),
                 &[
                     String::from("nonexistent component"),
