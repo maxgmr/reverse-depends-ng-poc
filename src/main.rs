@@ -1,5 +1,7 @@
 use clap::Parser;
-use reverse_depends_ng_poc::{Args, detect_devel_release};
+use reverse_depends_ng_poc::{Args, detect_devel_release, fetch_sources};
+
+const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
@@ -19,5 +21,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
         None => &detect_devel_release()?,
     };
     dbg!(&args);
+
+    let client = reqwest::Client::builder().user_agent(USER_AGENT).build()?;
+
+    let sources = fetch_sources(&client, release, &args).await;
+
     todo!()
 }
