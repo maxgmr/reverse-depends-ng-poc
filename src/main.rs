@@ -3,7 +3,8 @@ use std::collections::HashSet;
 use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
-    Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, source_binaries,
+    Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, find_rev_deps,
+    source_binaries,
 };
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
@@ -86,5 +87,19 @@ async fn run(args: Args) -> anyhow::Result<()> {
     // TODO debug
     dbg!(&target_names);
 
-    todo!()
+    let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_names, &args);
+
+    // Filter out unwanted components
+    if !args.components.is_empty() {
+        let allowed: HashSet<_> = args.components.iter().cloned().collect();
+        for entries in rev_deps.values_mut() {
+            entries.retain(|e| allowed.contains(e.component));
+        }
+        rev_deps.retain(|_, v| !v.is_empty());
+    }
+
+    // TODO debug
+    dbg!(&rev_deps);
+
+    Ok(())
 }
