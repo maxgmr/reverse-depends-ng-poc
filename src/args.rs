@@ -88,7 +88,7 @@ impl Args {
     /// Returns the set of [`ArchSearchCombo`]s to query for the
     /// chosen list of architectures for the given release.
     #[must_use]
-    pub fn needed_arch_searches(&self, release: &str) -> HashSet<ArchSearchCombo<'_>> {
+    pub fn needed_arch_searches(&self, release: &str) -> HashSet<ArchSearchCombo> {
         let mut combos = HashSet::new();
 
         for arch in &self.arches {
@@ -106,12 +106,15 @@ impl Args {
                 "source" => (),
                 a => {
                     // Route the arch to whichever archive carries it
-                    let base_url = if self.vendor.ports_arches(release).contains(&a) {
-                        self.vendor.ports()
-                    } else {
-                        self.vendor.archive()
-                    };
-                    combos.insert(ArchSearchCombo::new(base_url, a));
+                    if let Some(&arch) = self.vendor.ports_arches(release).iter().find(|&&s| s == a)
+                    {
+                        combos.insert(ArchSearchCombo::new(self.vendor.ports(), arch));
+                    } else if let Some(&arch) =
+                        self.vendor.primary_arches().iter().find(|&&s| s == a)
+                    {
+                        combos.insert(ArchSearchCombo::new(self.vendor.archive(), arch));
+                    }
+                    // Unknown arch: skip
                 }
             }
         }
@@ -123,14 +126,14 @@ impl Args {
 /// A specific set of values to use in a binary package search: the
 /// base archive URL of the search and the associated architecture.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ArchSearchCombo<'a> {
+pub struct ArchSearchCombo {
     /// The base archive URL of the search.
-    pub base_url: &'a str,
+    pub base_url: &'static str,
     /// The architecture of the search.
-    pub arch: &'a str,
+    pub arch: &'static str,
 }
-impl<'a> ArchSearchCombo<'a> {
-    fn new(base_url: &'a str, arch: &'a str) -> Self {
+impl ArchSearchCombo {
+    fn new(base_url: &'static str, arch: &'static str) -> Self {
         Self { base_url, arch }
     }
 }

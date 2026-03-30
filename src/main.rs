@@ -1,6 +1,6 @@
 use anyhow::Context;
 use clap::Parser;
-use reverse_depends_ng_poc::{Args, detect_devel_release, fetch_sources};
+use reverse_depends_ng_poc::{Args, detect_devel_release, fetch_binaries, fetch_sources};
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
 
@@ -37,7 +37,17 @@ async fn run(args: Args) -> anyhow::Result<()> {
         Vec::new()
     };
 
+    // TODO debug
     dbg!(&source_packages);
+
+    // If searching for binary packages isn't necessary, then no
+    // searches will be made within fetch_binaries().
+    let binary_packages = fetch_binaries(&client, release, &args)
+        .await
+        .with_context(|| "Failed to fetch binaries")?;
+
+    // TODO debug
+    dbg!(&binary_packages);
 
     todo!()
 }
