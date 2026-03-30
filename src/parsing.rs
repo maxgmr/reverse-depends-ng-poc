@@ -2,7 +2,7 @@
 //! info from archive data.
 
 use anyhow::Context;
-use deb822_fast::borrowed::{BorrowedParagraph, BorrowedParser};
+use deb822_fast::borrowed::BorrowedParser;
 
 /// A source package from the archive along with all its build dependencies.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -175,16 +175,44 @@ pub fn parse_binary_packages(
     Ok(binary_packages)
 }
 
-/// Helper function which gets a field from the given paragraph,
-/// splitting the field entries by commas or returning [`None`] if the
-/// given field does not exist.
-fn field_to_vec(paragraph: &BorrowedParagraph<'_>, field: &str) -> Option<Vec<String>> {
-    Some(
-        paragraph
-            .get_single(field)?
-            .split(',')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect(),
-    )
+/// Parse a raw dependency string into a list of OR-groups, stripping
+/// out the version constraints and architecture restrictions, as only
+/// the package names themselves are needed for reverse-dep lookup.
+#[must_use]
+pub fn parse_dep_names(raw_field: &str) -> Vec<Vec<&str>> {
+    raw_field
+        .split(',')
+        .map(|and_group| {
+            and_group
+                .split('|')
+                .filter_map(extract_name)
+                .collect::<Vec<_>>()
+        })
+        .filter(|group| !group.is_empty())
+        .collect()
+}
+
+/// Parse a raw `Provides` field into a list of packages, stripping out
+/// the version constraints and architecture restrictions, as only the
+/// package names themselves are needed for reverse-dep lookup.
+pub fn parse_provides(raw: &str) -> Vec<&str> {
+    raw.split(',').filter_map(extract_name).collect()
+}
+
+/// Extract the package name from a raw dependency token; i.e., remove
+/// version constraints and architecture restrictions.
+///
+/// Returns [`Option::None`] if the token is empty.
+#[must_use]
+pub fn extract_name(raw: &str) -> Option<&str> {
+    let s = raw.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    let end = s
+        .find(|c: char| c.is_whitespace() || c == '(' || c == '[')
+        .unwrap_or(s.len());
+    let name = &s[..end];
+    if name.is_empty() { None } else { Some(name) }
 }
