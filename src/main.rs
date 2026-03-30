@@ -1,6 +1,10 @@
-use anyhow::Context;
+use std::collections::HashSet;
+
+use anyhow::{Context, bail};
 use clap::Parser;
-use reverse_depends_ng_poc::{Args, detect_devel_release, fetch_binaries, fetch_sources};
+use reverse_depends_ng_poc::{
+    Args, detect_devel_release, fetch_binaries, fetch_sources, source_binaries,
+};
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
 
@@ -38,7 +42,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
     };
 
     // TODO debug
-    dbg!(&source_packages);
+    std::fs::write(
+        "/tmp/source_packages_debug",
+        format!("{source_packages:#?}"),
+    )?;
 
     // If searching for binary packages isn't necessary, then no
     // searches will be made within fetch_binaries().
@@ -47,7 +54,35 @@ async fn run(args: Args) -> anyhow::Result<()> {
         .with_context(|| "Failed to fetch binaries")?;
 
     // TODO debug
-    dbg!(&binary_packages);
+    std::fs::write(
+        "/tmp/binary_packages_debug",
+        format!("{binary_packages:#?}"),
+    )?;
+
+    // Expand the name in two possible ways:
+    //  1. If 'src:' prefix, then replace with all binary names for
+    //     that source package.
+    //  2. If checking for Provides relationships, then add all virtual
+    //     names the target provides.
+
+    let (is_src, raw_name) = match args.package.strip_prefix("src:") {
+        Some(name) => (true, name),
+        None => (false, args.package.as_str()),
+    };
+
+    let mut target_names: HashSet<String> = if is_src {
+        let bins = source_binaries(&source_packages, raw_name);
+        if bins.is_empty() {
+            bail!("source package '{raw_name}' not found in release '{release}'");
+        }
+        bins
+    } else {
+        let mut s = HashSet::new();
+        s.insert(raw_name.to_string());
+        s
+    };
+    // TODO debug
+    dbg!(&target_names);
 
     todo!()
 }
