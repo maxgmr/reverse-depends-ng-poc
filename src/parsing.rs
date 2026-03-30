@@ -7,50 +7,45 @@ use deb822_fast::borrowed::{BorrowedParagraph, BorrowedParser};
 /// A source package from the archive along with all its build dependencies.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourcePackage {
-    /// The name of this source package.
+    /// The source package's name.
     pub name: String,
-    /// The archive component of this source package.
+    /// The archive component.
     pub component: &'static str,
-    /// The pocket of this source package.
+    /// The pocket.
     pub pocket: &'static str,
-    /// The binary packages built by this source package.
-    pub binaries: Vec<String>,
-    /// The binary packages required to build any part of this source
-    /// package.
-    pub build_depends: Vec<String>,
-    /// The binary packages required to build arch-independent binary
-    /// packages provided by this source package.
-    pub build_depends_indep: Vec<String>,
-    /// The binary packages required to build arch-dependent binary
-    /// packages provided by this source package.
-    pub build_depends_arch: Vec<String>,
+    /// The raw `Binaries` field.
+    pub binaries: String,
+    /// The raw `Build-Depends` field.
+    pub build_depends: String,
+    /// The raw `Build-Depends-Indep` field.
+    pub build_depends_indep: String,
+    /// The raw `Build-Depends-Arch` field.
+    pub build_depends_arch: String,
 }
 
 /// A binary package from the archive along with all its package
 /// relationships.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BinaryPackage {
-    /// The name of this binary package.
+    /// The binary package's name.
     pub name: String,
     /// The architecture of the `Packages.gz` file from which this
     /// binary package came.
     pub arch: &'static str,
-    /// The archive component of this source package.
+    /// The archive component.
     pub component: &'static str,
-    /// The pocket of this source package.
+    /// The pocket.
     pub pocket: &'static str,
-    /// The packages upon which this binary package depends.
-    pub depends: Vec<String>,
-    /// The packages which must be fully installed before this
-    /// package's installation can begin.
-    pub pre_depends: Vec<String>,
-    /// The packages upon which this package has a strong, but not
-    /// absolute, dependency.
-    pub recommends: Vec<String>,
-    /// The packages which enhance this package's functionality.
-    pub suggests: Vec<String>,
-    /// The virtual package names this package satisfies.
-    pub provides: Vec<String>,
+    /// The raw `Depends` field.
+    pub depends: String,
+    /// The raw `Pre-Depends` field.
+    pub pre_depends: String,
+    /// The raw `Recommends` field.
+    pub recommends: String,
+    /// The raw `Suggests` field.
+    pub suggests: String,
+    /// The raw `Provides` field.
+    pub provides: String,
 }
 
 /// Parse the raw text content as a
@@ -78,9 +73,7 @@ pub fn parse_source_packages(
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;
-    // TODO optimization: don't waste time formatting the fields of
-    // packages you won't even be looking at. Leave the SourcePackage
-    // fields as their raw versions and split them later.
+    // TODO potential optimization: zero-copy?
     let source_packages: Vec<SourcePackage> = paragraphs
         .into_iter()
         .filter_map(|paragraph| {
@@ -88,12 +81,19 @@ pub fn parse_source_packages(
                 name: paragraph.get_single("package")?.to_string(),
                 component,
                 pocket,
-                binaries: field_to_vec(&paragraph, "binary")?,
-                build_depends: field_to_vec(&paragraph, "build-depends").unwrap_or_default(),
-                build_depends_indep: field_to_vec(&paragraph, "build-depends-indep")
-                    .unwrap_or_default(),
-                build_depends_arch: field_to_vec(&paragraph, "build-depends-arch")
-                    .unwrap_or_default(),
+                binaries: paragraph.get_single("binary")?.to_string(),
+                build_depends: paragraph
+                    .get_single("build-depends")
+                    .unwrap_or_default()
+                    .to_string(),
+                build_depends_indep: paragraph
+                    .get_single("build-depends-indep")
+                    .unwrap_or_default()
+                    .to_string(),
+                build_depends_arch: paragraph
+                    .get_single("build-depends-arch")
+                    .unwrap_or_default()
+                    .to_string(),
             })
         })
         .collect();
@@ -133,9 +133,7 @@ pub fn parse_binary_packages(
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;
-    // TODO optimization: don't waste time formatting the fields of
-    // packages you won't even be looking at. Leave the BinaryPackage
-    // fields as their raw versions and split them later.
+    // TODO potential optimization: zero-copy?
     let binary_packages: Vec<BinaryPackage> = paragraphs
         .into_iter()
         .filter_map(|paragraph| {
@@ -144,11 +142,26 @@ pub fn parse_binary_packages(
                 arch,
                 component,
                 pocket,
-                depends: field_to_vec(&paragraph, "depends").unwrap_or_default(),
-                pre_depends: field_to_vec(&paragraph, "pre-depends").unwrap_or_default(),
-                recommends: field_to_vec(&paragraph, "recommends").unwrap_or_default(),
-                suggests: field_to_vec(&paragraph, "suggests").unwrap_or_default(),
-                provides: field_to_vec(&paragraph, "provides").unwrap_or_default(),
+                depends: paragraph
+                    .get_single("depends")
+                    .unwrap_or_default()
+                    .to_string(),
+                pre_depends: paragraph
+                    .get_single("pre-depends")
+                    .unwrap_or_default()
+                    .to_string(),
+                recommends: paragraph
+                    .get_single("recommends")
+                    .unwrap_or_default()
+                    .to_string(),
+                suggests: paragraph
+                    .get_single("suggests")
+                    .unwrap_or_default()
+                    .to_string(),
+                provides: paragraph
+                    .get_single("provides")
+                    .unwrap_or_default()
+                    .to_string(),
             })
         })
         .collect();
