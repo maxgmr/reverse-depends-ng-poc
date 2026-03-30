@@ -82,9 +82,14 @@ impl Args {
     /// required.
     #[must_use]
     pub fn need_source_packages(&self) -> bool {
-        self.build_depends
-            || self.arches.iter().any(|s| s == "source")
-            || self.package.starts_with("src:")
+        self.want_build_depends() || self.package.starts_with("src:")
+    }
+
+    /// Returns `true` if and only if the program should consider build
+    /// dependencies.
+    #[must_use]
+    pub fn want_build_depends(&self) -> bool {
+        self.build_depends || self.arches.iter().any(|s| s == "source")
     }
 
     /// Returns the set of [`ArchSearchCombo`]s to query for the
