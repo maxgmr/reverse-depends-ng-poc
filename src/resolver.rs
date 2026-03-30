@@ -16,3 +16,18 @@ pub fn source_binaries(sources: &[SourcePackage], source_name: &str) -> HashSet<
         .flat_map(|s| s.binaries.iter().cloned())
         .collect()
 }
+
+/// Return all virtual package names provided by packages in
+/// `target_names`.
+#[allow(clippy::implicit_hasher)]
+#[must_use]
+pub fn binaries_provides(
+    packages: &[BinaryPackage],
+    target_names: &HashSet<String>,
+) -> HashSet<String> {
+    packages
+        .iter()
+        .filter(|p| target_names.contains(&p.name))
+        .flat_map(|p| p.provides.iter().cloned())
+        .collect()
+}

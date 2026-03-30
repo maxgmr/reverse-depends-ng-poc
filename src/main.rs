@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
-    Args, detect_devel_release, fetch_binaries, fetch_sources, source_binaries,
+    Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, source_binaries,
 };
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
@@ -64,12 +64,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
     //     that source package.
     //  2. If checking for Provides relationships, then add all virtual
     //     names the target provides.
-
     let (is_src, raw_name) = match args.package.strip_prefix("src:") {
         Some(name) => (true, name),
         None => (false, args.package.as_str()),
     };
-
     let mut target_names: HashSet<String> = if is_src {
         let bins = source_binaries(&source_packages, raw_name);
         if bins.is_empty() {
@@ -81,6 +79,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
         s.insert(raw_name.to_string());
         s
     };
+    if args.provides {
+        let provided = binaries_provides(&binary_packages, &target_names);
+        target_names.extend(provided);
+    }
     // TODO debug
     dbg!(&target_names);
 
