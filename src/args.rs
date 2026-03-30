@@ -8,6 +8,8 @@ use clap::Parser;
 
 const ARCH_DEFAULT: &str = "any";
 
+// TODO potential optimization: add "cached" option which allows the
+// usage of cached data
 #[allow(clippy::doc_markdown)]
 /// List reverse-dependencies of an Ubuntu/Debian package.
 ///

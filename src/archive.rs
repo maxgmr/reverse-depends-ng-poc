@@ -13,6 +13,7 @@ use tokio::sync::Semaphore;
 /// Max number of requests at one time.
 const MAX_CONCURRENT: usize = 16;
 
+// TODO potential optimization: return HashMap for faster searching
 /// Fetch the source packages of the given component and pocket combos
 /// for the given distro release. If successful, this function will
 /// return a list of [`SourcePackage`]s, which denote all the source
@@ -79,6 +80,7 @@ pub async fn fetch_sources(
     Ok(all_packages)
 }
 
+// TODO potential optimization: return HashMap for faster searching
 /// Fetch the binary packages of the given component, pocket, and arch
 /// combos for the given distro release. If successful, this function
 /// will return a list of [`BinaryPackage`]s, which denote all the
