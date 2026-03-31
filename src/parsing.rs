@@ -211,7 +211,7 @@ pub fn extract_name(raw: &str) -> Option<&str> {
     }
 
     let end = s
-        .find(|c: char| c.is_whitespace() || c == '(' || c == '[')
+        .find(|c: char| c.is_whitespace() || c == '(' || c == '[' || c == ':')
         .unwrap_or(s.len());
     let name = &s[..end];
     if name.is_empty() { None } else { Some(name) }
