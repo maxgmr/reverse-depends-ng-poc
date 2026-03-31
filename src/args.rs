@@ -7,6 +7,7 @@ use crate::Vendor;
 use clap::Parser;
 
 const ARCH_DEFAULT: &str = "any";
+const DEFAULT_DEPTH: usize = 10;
 
 // TODO potential optimization: add "cached" option which allows the
 // usage of cached data
@@ -61,6 +62,17 @@ pub struct Args {
     /// Display a simple, machine-readable list.
     #[arg(short, long)]
     pub list: bool,
+    /// Find reverse dependencies recursively.
+    #[arg(short = 'x', long)]
+    pub recursive: bool,
+    /// Maximum depth of recursion.
+    #[arg(
+        short = 'd',
+        long = "recursive-depth",
+        value_name = "DEPTH",
+        default_value_t = DEFAULT_DEPTH
+    )]
+    pub recursive_depth: usize,
 }
 impl Args {
     /// Get the list of components in the selected [`Vendor`] which
