@@ -88,43 +88,45 @@ pub fn find_rev_deps<'a>(
     // in target_names.
     let mut acc: HashMap<&'static str, HashMap<(&str, String), RevDepEntry<'_>>> = HashMap::new();
 
-    for bin in binaries {
-        // Create table of:
-        //   - The package's raw dependency field
-        //   - The relationship group under which it belongs
-        //   - Whether or not this dependency category is enabled
-        let fields: &[(&String, &'static str, bool)] = &[
-            (&bin.depends, "Reverse-Depends", true),
-            (&bin.pre_depends, "Reverse-Pre-Depends", true),
-            (&bin.recommends, "Reverse-Recommends", args.recommends),
-            (&bin.suggests, "Reverse-Suggests", args.suggests),
-        ];
+    if !args.want_build_depends() {
+        for bin in binaries {
+            // Create table of:
+            //   - The package's raw dependency field
+            //   - The relationship group under which it belongs
+            //   - Whether or not this dependency category is enabled
+            let fields: &[(&String, &'static str, bool)] = &[
+                (&bin.depends, "Reverse-Depends", true),
+                (&bin.pre_depends, "Reverse-Pre-Depends", true),
+                (&bin.recommends, "Reverse-Recommends", args.recommends),
+                (&bin.suggests, "Reverse-Suggests", args.suggests),
+            ];
 
-        for &(raw_field, group, enabled) in fields {
-            if !enabled || raw_field.is_empty() {
-                continue;
-            }
-
-            for or_group in parse_dep_names(raw_field) {
-                // Skip anything already in the target set
-                if !or_group.iter().any(|&n| target_names.contains(n)) {
+            for &(raw_field, group, enabled) in fields {
+                if !enabled || raw_field.is_empty() {
                     continue;
                 }
 
-                // The full OR expression is stored for display purposes.
-                let dep_expr = or_group.join(" | ");
+                for or_group in parse_dep_names(raw_field) {
+                    // Skip anything already in the target set
+                    if !or_group.iter().any(|&n| target_names.contains(n)) {
+                        continue;
+                    }
 
-                let group_entry = acc.entry(group).or_default();
-                let entry = group_entry
-                    .entry((&bin.name, dep_expr.clone()))
-                    .or_insert_with(|| RevDepEntry {
-                        package: &bin.name,
-                        architectures: Vec::new(),
-                        component: bin.component,
-                        dependency: dep_expr,
-                    });
-                if !entry.architectures.contains(&bin.arch) {
-                    entry.architectures.push(bin.arch);
+                    // The full OR expression is stored for display purposes.
+                    let dep_expr = or_group.join(" | ");
+
+                    let group_entry = acc.entry(group).or_default();
+                    let entry = group_entry
+                        .entry((&bin.name, dep_expr.clone()))
+                        .or_insert_with(|| RevDepEntry {
+                            package: &bin.name,
+                            architectures: Vec::new(),
+                            component: bin.component,
+                            dependency: dep_expr,
+                        });
+                    if !entry.architectures.contains(&bin.arch) {
+                        entry.architectures.push(bin.arch);
+                    }
                 }
             }
         }
