@@ -37,35 +37,35 @@ pub struct Args {
     /// Ignore Recommends relationships
     #[arg(short = 'R', long = "without-recommends", action = clap::ArgAction::SetFalse)]
     pub recommends: bool,
-    /// Also consider Suggests relationships.
+    /// Also consider Suggests relationships
     #[arg(short = 's', long = "with-suggests")]
     pub suggests: bool,
-    /// Also consider Provides relationships.
+    /// Also consider Provides relationships
     #[arg(short = 'p', long = "with-provides")]
     pub provides: bool,
-    /// Query build dependencies instead of binary dependencies.
-    /// Equivalent to `--arch=source`.
+    /// Query build dependencies instead of binary dependencies;
+    /// equivalent to `--arch=source`
     #[arg(short, long = "build-depends")]
     pub build_depends: bool,
     /// Query dependencies in ARCH, or `source` for build dependencies
-    /// (repeatable).
+    /// (repeatable)
     #[arg(short, long, default_value = ARCH_DEFAULT)]
     pub arches: Vec<String>,
     /// Skip ports architectures.
     #[arg(long = "no-ports", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
-    /// Only consider reverse dependencies in COMPONENT (repeatable).
+    /// Only consider reverse dependencies in COMPONENT (repeatable)
     #[arg(short, long = "component")]
     pub components: Vec<String>,
     // TODO add proposed argument
     // TODO add "only consider reverse dependencies in POCKET (repeatable)"
-    /// Display a simple, machine-readable list.
+    /// Display a simple, machine-readable list
     #[arg(short, long)]
     pub list: bool,
-    /// Find reverse dependencies recursively.
+    /// Find reverse dependencies recursively
     #[arg(short = 'x', long)]
     pub recursive: bool,
-    /// Maximum depth of recursion.
+    /// Maximum depth of recursion when `--recursive` is set
     #[arg(
         short = 'd',
         long = "recursive-depth",
