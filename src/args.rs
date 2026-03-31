@@ -51,7 +51,7 @@ pub struct Args {
     #[arg(short, long, default_value = ARCH_DEFAULT)]
     pub arches: Vec<String>,
     /// Skip ports architectures.
-    #[arg(long = "no-parts", action = clap::ArgAction::SetFalse)]
+    #[arg(long = "no-ports", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
     /// Only consider reverse dependencies in COMPONENT (repeatable).
     #[arg(short, long = "component")]
