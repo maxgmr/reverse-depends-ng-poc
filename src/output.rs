@@ -87,6 +87,24 @@ pub fn verbose_output(
     output
 }
 
+/// Print a simple, deduplicated, newline-separated list of package
+/// names ideal for scripting.
+///
+/// All relationship groups are merged; each package name appears at
+/// most once.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn list_output(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> String {
+    let mut names: Vec<&str> = result
+        .values()
+        .flat_map(|entries| entries.iter().map(|e| e.package))
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+    names.sort_unstable();
+    names.join("\n")
+}
+
 /// Return the result's field names in the original display order.
 ///
 /// Any fields missing from [`FIELD_ORDER`] are appended alphabetically.

@@ -4,7 +4,7 @@ use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
     Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, find_rev_deps,
-    source_binaries, verbose_output,
+    list_output, source_binaries, verbose_output,
 };
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
@@ -108,7 +108,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
     }
 
     if args.list {
-        todo!();
+        println!("{}", list_output(&rev_deps));
     } else {
         println!("{}", verbose_output(raw_name, &rev_deps));
     }
