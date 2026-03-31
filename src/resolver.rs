@@ -80,10 +80,13 @@ pub fn find_rev_deps<'a>(
 ) -> HashMap<&'static str, Vec<RevDepEntry<'a>>> {
     // Accumulator: output-field-name -> (package-name -> entry).
     //
-    // This is keyed by package name so when we see the same package in
-    // multiple Packages.gzs, we can append to its arches list rather
-    // than creating duplicates.
-    let mut acc: HashMap<&'static str, HashMap<&str, RevDepEntry<'_>>> = HashMap::new();
+    // This is keyed by (package_name, dep_expression).
+    // package_name is there so when we see the same package in multiple
+    // Packages.gzs, we can append to its arches list rather than
+    // creating duplicates. However, dep_expression is there so *all*
+    // relationships are kept if a package depends on multiple packages
+    // in target_names.
+    let mut acc: HashMap<&'static str, HashMap<(&str, String), RevDepEntry<'_>>> = HashMap::new();
 
     for bin in binaries {
         // Create table of:
@@ -112,12 +115,14 @@ pub fn find_rev_deps<'a>(
                 let dep_expr = or_group.join(" | ");
 
                 let group_entry = acc.entry(group).or_default();
-                let entry = group_entry.entry(&bin.name).or_insert_with(|| RevDepEntry {
-                    package: &bin.name,
-                    architectures: Vec::new(),
-                    component: bin.component,
-                    dependency: dep_expr,
-                });
+                let entry = group_entry
+                    .entry((&bin.name, dep_expr.clone()))
+                    .or_insert_with(|| RevDepEntry {
+                        package: &bin.name,
+                        architectures: Vec::new(),
+                        component: bin.component,
+                        dependency: dep_expr,
+                    });
                 if !entry.architectures.contains(&bin.arch) {
                     entry.architectures.push(bin.arch);
                 }
@@ -151,12 +156,14 @@ pub fn find_rev_deps<'a>(
                     let dep_expr = or_group.join(" | ");
                     let group_entry = acc.entry(group).or_default();
 
-                    group_entry.entry(&src.name).or_insert_with(|| RevDepEntry {
-                        package: &src.name,
-                        architectures: vec!["source"],
-                        component: src.component,
-                        dependency: dep_expr,
-                    });
+                    group_entry
+                        .entry((&src.name, dep_expr.clone()))
+                        .or_insert_with(|| RevDepEntry {
+                            package: &src.name,
+                            architectures: vec!["source"],
+                            component: src.component,
+                            dependency: dep_expr,
+                        });
                 }
             }
         }
