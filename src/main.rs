@@ -1,10 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
     Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, find_rev_deps,
-    list_output, source_binaries, verbose_output,
+    find_rev_deps_recursive, list_output, list_output_recursive, source_binaries, verbose_output,
+    verbose_output_recursive,
 };
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
@@ -71,28 +72,65 @@ async fn run(args: Args) -> anyhow::Result<()> {
         target_names.extend(provided);
     }
 
-    let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_names, &args);
+    let target_refs: HashSet<&str> = target_names.iter().map(String::as_str).collect();
 
-    // Filter out unwanted components
-    if !args.components.is_empty() {
-        let allowed: HashSet<_> = args.components.iter().cloned().collect();
-        for entries in rev_deps.values_mut() {
-            entries.retain(|e| allowed.contains(e.component));
+    if args.recursive {
+        let mut all_results = find_rev_deps_recursive(
+            &binary_packages,
+            &source_packages,
+            raw_name,
+            &target_refs,
+            &args,
+        );
+
+        if !args.components.is_empty() {
+            let allowed: HashSet<_> = args.components.iter().cloned().collect();
+            for inner in all_results.values_mut() {
+                for entries in inner.values_mut() {
+                    entries.retain(|e| allowed.contains(e.component));
+                }
+                inner.retain(|_, entries| !entries.is_empty());
+            }
+            all_results.retain(|_, inner| !inner.is_empty());
         }
-        rev_deps.retain(|_, v| !v.is_empty());
-    }
 
-    // Print output
-    if rev_deps.is_empty() {
-        eprintln!("No reverse dependencies found for '{}'.", args.package);
-        return Ok(());
-    }
+        if all_results.get(raw_name).is_none_or(HashMap::is_empty) {
+            print_no_rev_deps(&args.package);
+            return Ok(());
+        }
 
-    if args.list {
-        println!("{}", list_output(&rev_deps));
+        if args.list {
+            println!("{}", list_output_recursive(&all_results));
+        } else {
+            println!("{}", verbose_output_recursive(raw_name, &all_results));
+        }
     } else {
-        println!("{}", verbose_output(raw_name, &rev_deps));
+        let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_refs, &args);
+
+        if !args.components.is_empty() {
+            let allowed: HashSet<_> = args.components.iter().cloned().collect();
+            for entries in rev_deps.values_mut() {
+                entries.retain(|e| allowed.contains(e.component));
+            }
+            rev_deps.retain(|_, v| !v.is_empty());
+        }
+
+        if rev_deps.is_empty() {
+            print_no_rev_deps(&args.package);
+            return Ok(());
+        }
+
+        if args.list {
+            println!("{}", list_output(&rev_deps));
+        } else {
+            println!("{}", verbose_output(raw_name, &rev_deps));
+        }
     }
 
     Ok(())
+}
+
+// Helper function to print msg when no reverse deps are found.
+fn print_no_rev_deps(package: &str) {
+    eprintln!("No reverse dependencies found for '{}'.", package);
 }

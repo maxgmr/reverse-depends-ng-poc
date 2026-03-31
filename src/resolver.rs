@@ -75,7 +75,7 @@ pub fn binaries_provides(
 pub fn find_rev_deps<'a>(
     binaries: &'a [BinaryPackage],
     sources: &'a [SourcePackage],
-    target_names: &HashSet<String>,
+    target_names: &HashSet<&str>,
     args: &Args,
 ) -> HashMap<&'static str, Vec<RevDepEntry<'a>>> {
     // Accumulator: output-field-name -> (package-name -> entry).
@@ -225,9 +225,77 @@ pub fn find_rev_deps<'a>(
         .collect()
 }
 
+/// Build the full reverse dependency tree up to the given maximum
+/// depth.
+///
+/// Returns a map from each package name to its own reverse dependency
+/// results. The entry keyed by `queried_package` is the root; the
+/// display layer can then walk the tree recursively by looking up each
+/// package's own entry.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn find_rev_deps_recursive<'a>(
+    binaries: &'a [BinaryPackage],
+    sources: &'a [SourcePackage],
+    queried_package: &'a str,
+    initial_targets: &HashSet<&str>,
+    args: &Args,
+) -> HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>> {
+    let mut all_results = HashMap::new();
+
+    // Pre-populate visited with initial targets
+    let mut visited: HashSet<&str> = initial_targets.clone();
+
+    // Depth 0: query all initial targets together. Identical to non-
+    // recursive mode.
+    let root_rev_deps = find_rev_deps(binaries, sources, initial_targets, args);
+
+    // Seed first frontier with all packages found at depth 0, excluding
+    // anything already visited.
+    let mut frontier: HashSet<&str> = root_rev_deps
+        .values()
+        .flat_map(|entries| entries.iter())
+        .map(|entry| entry.package)
+        .filter(|name| visited.insert(name))
+        .collect();
+
+    all_results.insert(queried_package, root_rev_deps);
+
+    // BFS: each iteration processes one depth level.
+    for _ in 1..=args.recursive_depth {
+        if frontier.is_empty() {
+            break;
+        }
+
+        let mut next_frontier = HashSet::new();
+
+        for &package in &frontier {
+            let single_target = HashSet::from([package]);
+            let rev_deps = find_rev_deps(binaries, sources, &single_target, args);
+
+            // Gather newly discovered packages for next depth level
+            for entries in rev_deps.values() {
+                for entry in entries {
+                    if visited.insert(entry.package) {
+                        next_frontier.insert(entry.package);
+                    }
+                }
+            }
+
+            if !rev_deps.is_empty() {
+                all_results.insert(package, rev_deps);
+            }
+        }
+
+        frontier = next_frontier;
+    }
+
+    all_results
+}
+
 /// Return true if and only if `target_names` contains an item in the
 /// given field.
-fn field_matches_target(field: &str, target_names: &HashSet<String>) -> bool {
+fn field_matches_target(field: &str, target_names: &HashSet<&str>) -> bool {
     !field.is_empty()
         && parse_dep_names(field)
             .iter()

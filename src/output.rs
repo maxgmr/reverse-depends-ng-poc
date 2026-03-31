@@ -51,58 +51,172 @@ pub fn verbose_output(
         .flat_map(|e| e.architectures.iter().copied())
         .filter(|&a| a != "source")
         .collect();
-    let ordered = ordered_fields(result);
 
-    for field in ordered {
-        let entries = &result[field];
+    write_sections(result, &all_arches, queried_package, &mut output, |_, _| {});
+    write_arch_footer(&all_arches, &mut output);
+    output
+}
 
-        // Add section header
-        output.push_str(field);
-        output.push('\n');
-        output.push_str(&"=".repeat(field.len()));
-        output.push('\n');
+/// Get the formatted output string for recursive mode.
+///
+/// Each root-level entry is immediately followed by its transitive
+/// reverse dependency subtree, indented accordingly.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn verbose_output_recursive<'a>(
+    queried_package: &str,
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+) -> String {
+    let mut output = String::new();
 
-        // Add entries
-        for entry in entries {
-            output.push_str(&format_entry(entry, &all_arches, queried_package));
-            output.push('\n');
-        }
+    let Some(root_results) = all_results.get(queried_package) else {
+        return output;
+    };
 
-        // Blank line between sections
-        output.push('\n');
-    }
+    // Collect arches across all depth labels so arch labels are
+    // consistent
+    let all_arches: HashSet<&'static str> = all_results
+        .values()
+        .flat_map(|results| results.values())
+        .flat_map(|entries| entries.iter())
+        .flat_map(|e| e.architectures.iter().copied())
+        .filter(|&a| a != "source")
+        .collect();
 
-    // Footer: denote which architectures the unlabelled packages are
-    // reverse dependencies on.
-    if !all_arches.is_empty() {
-        let mut sorted: Vec<&str> = all_arches.iter().copied().collect();
-        sorted.sort_unstable();
-        let _ = write!(
-            &mut output,
-            "Packages without architectures listed are reverse-dependencies in: {}",
-            sorted.join(", ")
-        );
-    }
+    // Prevent a package's subtree from being rendered more than once if
+    // it appears under multiple parents
+    let mut visited = HashSet::from([queried_package]);
 
+    write_sections(
+        root_results,
+        &all_arches,
+        queried_package,
+        &mut output,
+        |entry, output| {
+            if visited.insert(entry.package) {
+                render_subtree(
+                    entry.package,
+                    all_results,
+                    &all_arches,
+                    &mut visited,
+                    1,
+                    output,
+                );
+            }
+        },
+    );
+    write_arch_footer(&all_arches, &mut output);
     output
 }
 
 /// Print a simple, deduplicated, newline-separated list of package
-/// names ideal for scripting.
+/// names. Ideal for scripting.
 ///
 /// All relationship groups are merged; each package name appears at
 /// most once.
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn list_output(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> String {
-    let mut names: Vec<&str> = result
-        .values()
-        .flat_map(|entries| entries.iter().map(|e| e.package))
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
+    collect_and_sort_names(
+        result
+            .values()
+            .flat_map(|entries| entries.iter().map(|e| e.package)),
+    )
+}
+
+/// Print a simple, deduplicated, newline-separated list of transitively
+/// found package names. Ideal for scripting.
+///
+/// All relationship groups are merged and all transitive relationships
+/// are flattened.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn list_output_recursive<'a>(
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+) -> String {
+    collect_and_sort_names(
+        all_results
+            .values()
+            .flat_map(|inner| inner.values())
+            .flat_map(|entries| entries.iter().map(|e| e.package)),
+    )
+}
+
+/// Helper for [`list_output`] and [`list_output_recursive`].
+fn collect_and_sort_names<'a>(iter: impl Iterator<Item = &'a str>) -> String {
+    let mut names: Vec<&'a str> = iter.collect::<HashSet<_>>().into_iter().collect();
     names.sort_unstable();
     names.join("\n")
+}
+
+/// Helper function which handles the section-rendering loop of
+/// [`verbose_output`] and [`verbose_output_recursive`]. The only
+/// difference is the recursive version needs to call `render_subtree`
+/// after each entry, which can be passed as a closure to this function.
+fn write_sections<'a, F>(
+    result: &HashMap<&'static str, Vec<RevDepEntry<'a>>>,
+    all_arches: &HashSet<&'static str>,
+    queried_package: &str,
+    output: &mut String,
+    mut after_entry: F,
+) where
+    F: FnMut(&RevDepEntry<'a>, &mut String),
+{
+    for field in ordered_fields(result) {
+        // Add header
+        output.push_str(field);
+        output.push('\n');
+        output.push_str(&"=".repeat(field.len()));
+        output.push('\n');
+
+        // Add entries, potentially adding more things for each entry
+        for entry in &result[field] {
+            output.push_str(&format_entry(entry, all_arches, queried_package, 0));
+            output.push('\n');
+            after_entry(entry, output);
+        }
+
+        // Add blank line after section
+        output.push('\n');
+    }
+}
+
+/// Recursively render the subtree of reverse dependencies for
+/// `package`, indented according to `depth`. Children are rendered
+/// across all relationship trees without sub-headers to keep the tree
+/// readable.
+fn render_subtree<'a>(
+    package: &str,
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+    all_arches: &HashSet<&'static str>,
+    visited: &mut HashSet<&'a str>,
+    depth: usize,
+    output: &mut String,
+) {
+    let Some(results) = all_results.get(package) else {
+        return;
+    };
+
+    for field in ordered_fields(results) {
+        for entry in &results[field] {
+            // Package `package` (not orig root) as `queried_package` so
+            // the "(for ...)" annotation is correctly suppressed when
+            // the dependency matches the immediate parent.
+            output.push_str(&format_entry(entry, all_arches, package, depth));
+            output.push('\n');
+
+            if visited.insert(entry.package) {
+                render_subtree(
+                    entry.package,
+                    all_results,
+                    all_arches,
+                    visited,
+                    depth + 1,
+                    output,
+                );
+            }
+        }
+    }
 }
 
 /// Return the result's field names in the original display order.
@@ -127,6 +241,20 @@ fn ordered_fields(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> Vec<&
     ordered
 }
 
+/// Write the footer, to `output`, which denotes the architectures the
+/// unlabelled packages are reverse dependencies on.
+fn write_arch_footer(all_arches: &HashSet<&'static str>, output: &mut String) {
+    if !all_arches.is_empty() {
+        let mut sorted: Vec<&str> = all_arches.iter().copied().collect();
+        sorted.sort_unstable();
+        let _ = write!(
+            output,
+            "Packages without architectures listed are reverse-dependencies in: {}",
+            sorted.join(", ")
+        );
+    }
+}
+
 /// Format a single reverse dependency entry as a string.
 ///
 /// Architecture labels are shown only when the entry does not cover all
@@ -138,7 +266,10 @@ fn format_entry(
     entry: &RevDepEntry<'_>,
     all_arches: &HashSet<&'static str>,
     queried_package: &str,
+    depth: usize,
 ) -> String {
+    let indent = "  ".repeat(depth);
+
     let arch_label = {
         let entry_arch_set: HashSet<_> = entry.architectures.iter().collect();
         let all_arch_set: HashSet<_> = all_arches.iter().collect();
@@ -154,7 +285,7 @@ fn format_entry(
         }
     };
 
-    let lhs = format!("* {}{}", entry.package, arch_label);
+    let lhs = format!("{}* {}{}", indent, entry.package, arch_label);
 
     let annotation = if entry.dependency != queried_package && !entry.dependency.is_empty() {
         format!("  (for {})", entry.dependency)
