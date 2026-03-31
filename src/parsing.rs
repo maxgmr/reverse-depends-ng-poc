@@ -21,6 +21,8 @@ pub struct SourcePackage {
     pub build_depends_indep: String,
     /// The raw `Build-Depends-Arch` field.
     pub build_depends_arch: String,
+    /// The raw `Testsuite-Triggers` field.
+    pub testsuite_triggers: String,
 }
 
 /// A binary package from the archive along with all its package
@@ -92,6 +94,10 @@ pub fn parse_source_packages(
                     .to_string(),
                 build_depends_arch: paragraph
                     .get_single("build-depends-arch")
+                    .unwrap_or_default()
+                    .to_string(),
+                testsuite_triggers: paragraph
+                    .get_single("testsuite-triggers")
                     .unwrap_or_default()
                     .to_string(),
             })

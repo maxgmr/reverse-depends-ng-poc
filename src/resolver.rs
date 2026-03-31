@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{Args, BinaryPackage, SourcePackage, parse_dep_names};
+use crate::{Args, BinaryPackage, SourcePackage, extract_name, parse_dep_names};
 
 /// A single reverse dependency: a package that depends on the given
 /// target.
@@ -156,15 +156,55 @@ pub fn find_rev_deps<'a>(
                     }
 
                     let dep_expr = or_group.join(" | ");
-                    let group_entry = acc.entry(group).or_default();
-
-                    group_entry
+                    acc.entry(group)
+                        .or_default()
                         .entry((&src.name, dep_expr.clone()))
                         .or_insert_with(|| RevDepEntry {
                             package: &src.name,
                             architectures: vec!["source"],
                             component: src.component,
                             dependency: dep_expr,
+                        });
+                }
+            }
+
+            // Handle testsuite triggers
+            if !src.testsuite_triggers.is_empty() {
+                let triggers: Vec<&str> = src
+                    .testsuite_triggers
+                    .split(',')
+                    .filter_map(extract_name)
+                    .collect();
+
+                let direct_match = triggers.iter().any(|&t| target_names.contains(t));
+
+                // When a source package has
+                // "Testsuite-Triggers: @builddeps@", it means "re-run
+                // my tests whenever any of my build deps change". We
+                // must expand `@builddeps@` into those build
+                // dependencies.
+                let builddeps_match = triggers.contains(&"@builddeps@")
+                    && [
+                        &src.build_depends,
+                        &src.build_depends_indep,
+                        &src.build_depends_arch,
+                    ]
+                    .iter()
+                    .any(|f| field_matches_target(f, target_names));
+
+                if direct_match || builddeps_match {
+                    let group_entry = acc.entry("Reverse-Testsuite-Triggers").or_default();
+                    group_entry
+                        // OK to use String::new() as dep component
+                        // because search source package gets only one
+                        // Testsuite-Triggers entry regardless of how
+                        // many triggers matched.
+                        .entry((&src.name, String::new()))
+                        .or_insert_with(|| RevDepEntry {
+                            package: &src.name,
+                            architectures: vec!["source"],
+                            component: src.component,
+                            dependency: String::new(),
                         });
                 }
             }
@@ -183,4 +223,13 @@ pub fn find_rev_deps<'a>(
             (field, entries)
         })
         .collect()
+}
+
+/// Return true if and only if `target_names` contains an item in the
+/// given field.
+fn field_matches_target(field: &str, target_names: &HashSet<String>) -> bool {
+    !field.is_empty()
+        && parse_dep_names(field)
+            .iter()
+            .any(|or_group| or_group.iter().any(|&n| target_names.contains(n)))
 }

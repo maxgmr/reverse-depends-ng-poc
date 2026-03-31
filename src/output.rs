@@ -17,6 +17,7 @@ const FIELD_ORDER: &[&str] = &[
     "Reverse-Build-Depends",
     "Reverse-Build-Depends-Indep",
     "Reverse-Build-Depends-Arch",
+    "Reverse-Testsuite-Triggers",
 ];
 
 /// Original reverse-depends column padding
