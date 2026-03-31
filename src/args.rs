@@ -117,15 +117,19 @@ impl Args {
                     for arch in self.vendor.primary_arches() {
                         combos.insert(ArchSearchCombo::new(self.vendor.archive(), arch));
                     }
-                    for arch in self.vendor.ports_arches(release) {
-                        combos.insert(ArchSearchCombo::new(self.vendor.ports(), arch));
+                    if self.ports {
+                        for arch in self.vendor.ports_arches(release) {
+                            combos.insert(ArchSearchCombo::new(self.vendor.ports(), arch));
+                        }
                     }
                 }
                 // No binary package lists to search for source
                 "source" => (),
                 a => {
                     // Route the arch to whichever archive carries it
-                    if let Some(&arch) = self.vendor.ports_arches(release).iter().find(|&&s| s == a)
+                    if self.ports
+                        && let Some(&arch) =
+                            self.vendor.ports_arches(release).iter().find(|&&s| s == a)
                     {
                         combos.insert(ArchSearchCombo::new(self.vendor.ports(), arch));
                     } else if let Some(&arch) =
