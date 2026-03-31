@@ -26,8 +26,6 @@ async fn run(args: Args) -> anyhow::Result<()> {
         Some(r) => r,
         None => &detect_devel_release()?,
     };
-    // TODO debug
-    // dbg!(&args);
 
     let client = reqwest::Client::builder()
         .no_gzip()
@@ -42,23 +40,11 @@ async fn run(args: Args) -> anyhow::Result<()> {
         Vec::new()
     };
 
-    // TODO debug
-    // std::fs::write(
-    //     "/tmp/source_packages_debug",
-    //     format!("{source_packages:#?}"),
-    // )?;
-
     // If searching for binary packages isn't necessary, then no
     // searches will be made within fetch_binaries().
     let binary_packages = fetch_binaries(&client, release, &args)
         .await
         .with_context(|| "Failed to fetch binaries")?;
-
-    // TODO debug
-    // std::fs::write(
-    //     "/tmp/binary_packages_debug",
-    //     format!("{binary_packages:#?}"),
-    // )?;
 
     // Expand the name in two possible ways:
     //  1. If 'src:' prefix, then replace with all binary names for
@@ -84,8 +70,6 @@ async fn run(args: Args) -> anyhow::Result<()> {
         let provided = binaries_provides(&binary_packages, &target_names);
         target_names.extend(provided);
     }
-    // TODO debug
-    // dbg!(&target_names);
 
     let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_names, &args);
 
@@ -97,9 +81,6 @@ async fn run(args: Args) -> anyhow::Result<()> {
         }
         rev_deps.retain(|_, v| !v.is_empty());
     }
-
-    // TODO debug
-    // dbg!(&rev_deps);
 
     // Print output
     if rev_deps.is_empty() {
