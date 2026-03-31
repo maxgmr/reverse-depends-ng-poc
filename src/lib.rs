@@ -14,12 +14,14 @@ use anyhow::{Context, anyhow};
 
 mod archive;
 mod args;
+mod output;
 mod parsing;
 mod resolver;
 mod vendor;
 
 pub use archive::*;
 pub use args::*;
+pub use output::*;
 pub use parsing::*;
 pub use resolver::*;
 pub use vendor::*;

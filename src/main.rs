@@ -4,7 +4,7 @@ use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
     Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, find_rev_deps,
-    source_binaries,
+    source_binaries, verbose_output,
 };
 
 const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
@@ -27,7 +27,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         None => &detect_devel_release()?,
     };
     // TODO debug
-    dbg!(&args);
+    // dbg!(&args);
 
     let client = reqwest::Client::builder()
         .no_gzip()
@@ -43,10 +43,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
     };
 
     // TODO debug
-    std::fs::write(
-        "/tmp/source_packages_debug",
-        format!("{source_packages:#?}"),
-    )?;
+    // std::fs::write(
+    //     "/tmp/source_packages_debug",
+    //     format!("{source_packages:#?}"),
+    // )?;
 
     // If searching for binary packages isn't necessary, then no
     // searches will be made within fetch_binaries().
@@ -55,10 +55,10 @@ async fn run(args: Args) -> anyhow::Result<()> {
         .with_context(|| "Failed to fetch binaries")?;
 
     // TODO debug
-    std::fs::write(
-        "/tmp/binary_packages_debug",
-        format!("{binary_packages:#?}"),
-    )?;
+    // std::fs::write(
+    //     "/tmp/binary_packages_debug",
+    //     format!("{binary_packages:#?}"),
+    // )?;
 
     // Expand the name in two possible ways:
     //  1. If 'src:' prefix, then replace with all binary names for
@@ -85,7 +85,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         target_names.extend(provided);
     }
     // TODO debug
-    dbg!(&target_names);
+    // dbg!(&target_names);
 
     let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_names, &args);
 
@@ -99,7 +99,19 @@ async fn run(args: Args) -> anyhow::Result<()> {
     }
 
     // TODO debug
-    dbg!(&rev_deps);
+    // dbg!(&rev_deps);
+
+    // Print output
+    if rev_deps.is_empty() {
+        eprintln!("No reverse dependencies found for '{}'.", args.package);
+        return Ok(());
+    }
+
+    if args.list {
+        todo!();
+    } else {
+        println!("{}", verbose_output(raw_name, &rev_deps));
+    }
 
     Ok(())
 }
