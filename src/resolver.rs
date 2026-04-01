@@ -301,3 +301,8 @@ fn field_matches_target(field: &str, target_names: &HashSet<&str>) -> bool {
             .iter()
             .any(|or_group| or_group.iter().any(|&n| target_names.contains(n)))
 }
+
+// AI-generated unit tests
+#[cfg(test)]
+#[path = "unit_tests/resolver_tests.rs"]
+mod tests;
