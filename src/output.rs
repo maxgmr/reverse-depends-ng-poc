@@ -306,3 +306,7 @@ fn format_entry(
         format!("{lhs}{padding}{annotation}")
     }
 }
+
+#[cfg(test)]
+#[path = "unit_tests/output_tests.rs"]
+mod tests;
