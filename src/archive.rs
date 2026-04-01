@@ -40,7 +40,7 @@ pub async fn fetch_sources(
 
     let archive_base = args.vendor.archive();
 
-    for pocket in args.vendor.pockets() {
+    for pocket in args.selected_pockets()? {
         for component in args.selected_components()? {
             let url =
                 format!("{archive_base}/dists/{release}{pocket}/{component}/source/Sources.gz");
@@ -110,7 +110,7 @@ pub async fn fetch_binaries(
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT));
     let mut handles = Vec::new();
 
-    for pocket in args.vendor.pockets() {
+    for pocket in args.selected_pockets()? {
         for component in args.selected_components()? {
             for search_combo in &search_combos {
                 let archive_base = search_combo.base_url;

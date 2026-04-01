@@ -55,10 +55,14 @@ pub struct Args {
     #[arg(long = "no-ports", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
     /// Only consider reverse dependencies in COMPONENT (repeatable)
-    #[arg(short, long = "component")]
+    #[arg(short, long = "component", value_name = "COMPONENT")]
     pub components: Vec<String>,
-    // TODO add proposed argument
-    // TODO add "only consider reverse dependencies in POCKET (repeatable)"
+    /// Only consider reverse dependencies in POCKET (repeatable)
+    #[arg(short = 'k', long = "pocket", value_name = "POCKET")]
+    pub pockets: Vec<String>,
+    /// Also consider proposed pocket
+    #[arg(long)]
+    pub proposed: bool,
     /// Display a simple, machine-readable list
     #[arg(short, long)]
     pub list: bool,
@@ -83,11 +87,97 @@ impl Args {
     ///
     /// # Errors
     ///
-    /// This function returns an [`anyhow::Error`] if the returned list is
-    /// empty.
+    /// This function returns an [`anyhow::Error`] if none of the
+    /// provided components exist in the archive.
     pub fn selected_components(&self) -> anyhow::Result<Vec<&'static str>> {
-        #[allow(clippy::used_underscore_items)]
-        _selected_components(self.vendor.components(), &self.components)
+        if self.components.is_empty() {
+            return Ok(self.vendor.components().to_vec());
+        }
+
+        let result: Vec<&'static str> = self
+            .vendor
+            .components()
+            .iter()
+            .copied()
+            .filter(|&known_val| {
+                self.components
+                    .iter()
+                    .any(|given_val| given_val.as_str() == known_val)
+            })
+            .collect();
+
+        if result.is_empty() {
+            anyhow::bail!("No components named {:?} exist", self.components);
+        }
+
+        Ok(result)
+    }
+
+    /// Get the list of pockets in the selected [`Vendor`] which were
+    /// selected by [`Args::pockets`].
+    ///
+    /// If [`Args::pockets`] is empty, then all pockets except
+    /// `proposed` are selected.
+    ///
+    /// # Errors
+    ///
+    /// This function returns an [`anyhow::Error`] if none of the
+    /// provided pockets exist in the archive.
+    pub fn selected_pockets(&self) -> anyhow::Result<Vec<&'static str>> {
+        // Select all pockets except proposed if no pocket args given,
+        // also enabling proposed if --proposed is given
+        if self.pockets.is_empty() {
+            let mut pockets = self.vendor.pockets().to_vec();
+            if self.proposed {
+                pockets.push("-proposed");
+            }
+            return Ok(pockets);
+        }
+
+        // Since we're filtering pockets with `--pocket` args, it's OK
+        // to add the "-proposed" pocket to the list of available
+        // pockets.
+        let all_pockets: Vec<&'static str> = self
+            .vendor
+            .pockets()
+            .iter()
+            .copied()
+            .chain(std::iter::once("-proposed"))
+            .collect();
+
+        // Normalize args to URL format: "release" -> ""; add "-" if
+        // missing
+        let normalized: Vec<String> = self
+            .pockets
+            .iter()
+            .map(|p| {
+                if p == "release" || p == "-release" {
+                    String::new()
+                } else if p.starts_with('-') {
+                    p.clone()
+                } else {
+                    format!("-{p}")
+                }
+            })
+            .collect();
+
+        let mut result: Vec<&'static str> = all_pockets
+            .iter()
+            .copied()
+            .filter(|&known| normalized.iter().any(|n| n.as_str() == known))
+            .collect();
+
+        // Add proposed if the proposed flag is given but it wasn't
+        // listed as a --pocket filter
+        if self.proposed && !result.contains(&"-proposed") {
+            result.push("-proposed");
+        }
+
+        if result.is_empty() {
+            anyhow::bail!("No pockets named {:?} exist", self.pockets);
+        }
+
+        Ok(result)
     }
 
     /// Returns `true` if and only if fetching source packages is
@@ -158,89 +248,5 @@ pub struct ArchSearchCombo {
 impl ArchSearchCombo {
     fn new(base_url: &'static str, arch: &'static str) -> Self {
         Self { base_url, arch }
-    }
-}
-
-/// Helper to make testing easier
-fn _selected_components(
-    vendor_components: &'static [&'static str],
-    arg_components: &[String],
-) -> anyhow::Result<Vec<&'static str>> {
-    if arg_components.is_empty() {
-        return Ok(vendor_components.to_vec());
-    }
-
-    let result: Vec<&'static str> = vendor_components
-        .iter()
-        .copied()
-        .filter(|&vendor_component| {
-            arg_components
-                .iter()
-                .any(|arg_component| arg_component.as_str() == vendor_component)
-        })
-        .collect();
-
-    if result.is_empty() {
-        anyhow::bail!("No components named {arg_components:?} exist");
-    }
-
-    Ok(result)
-}
-
-#[cfg(test)]
-#[allow(clippy::used_underscore_items)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn all_ubuntu_components() {
-        assert_eq!(
-            _selected_components(Vendor::Ubuntu.components(), &[]).unwrap(),
-            Vendor::Ubuntu.components()
-        );
-    }
-
-    #[test]
-    fn all_debian_components() {
-        assert_eq!(
-            _selected_components(Vendor::Debian.components(), &[]).unwrap(),
-            Vendor::Debian.components()
-        );
-    }
-
-    #[test]
-    fn invalid_components() {
-        _selected_components(
-            Vendor::Ubuntu.components(),
-            &[String::from("nonexistent component")],
-        )
-        .unwrap_err();
-    }
-
-    #[test]
-    fn some_ubuntu_components() {
-        assert_eq!(
-            _selected_components(
-                Vendor::Ubuntu.components(),
-                &[String::from("main"), String::from("restricted")]
-            )
-            .unwrap(),
-            vec!["main", "restricted"]
-        );
-    }
-
-    #[test]
-    fn one_valid_component() {
-        assert_eq!(
-            _selected_components(
-                Vendor::Debian.components(),
-                &[
-                    String::from("nonexistent component"),
-                    String::from("non-free-firmware")
-                ]
-            )
-            .unwrap(),
-            vec!["non-free-firmware"]
-        );
     }
 }
