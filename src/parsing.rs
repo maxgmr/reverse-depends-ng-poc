@@ -222,3 +222,8 @@ pub fn extract_name(raw: &str) -> Option<&str> {
     let name = &s[..end];
     if name.is_empty() { None } else { Some(name) }
 }
+
+// AI-generated unit tests
+#[cfg(test)]
+#[path = "unit_tests/parsing_tests.rs"]
+mod tests;
