@@ -3,9 +3,9 @@ use std::collections::{HashMap, HashSet};
 use anyhow::{Context, bail};
 use clap::Parser;
 use reverse_depends_ng_poc::{
-    Args, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources, find_rev_deps,
-    find_rev_deps_recursive, list_output, list_output_recursive, source_binaries, verbose_output,
-    verbose_output_recursive,
+    Args, ReverseIndex, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources,
+    find_rev_deps, find_rev_deps_recursive, list_output, list_output_recursive, source_binaries,
+    verbose_output, verbose_output_recursive,
 };
 
 const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
@@ -74,14 +74,11 @@ async fn run(args: Args) -> anyhow::Result<()> {
 
     let target_refs: HashSet<&str> = target_names.iter().map(String::as_str).collect();
 
+    // Pre-compute all reverse dependencies for more efficient recursion
+    let index = ReverseIndex::build(&binary_packages, &source_packages);
+
     if args.recursive {
-        let mut all_results = find_rev_deps_recursive(
-            &binary_packages,
-            &source_packages,
-            raw_name,
-            &target_refs,
-            &args,
-        );
+        let mut all_results = find_rev_deps_recursive(&index, raw_name, &target_refs, &args);
 
         if !args.components.is_empty() {
             let allowed: HashSet<_> = args.components.iter().cloned().collect();
@@ -105,7 +102,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
             println!("{}", verbose_output_recursive(raw_name, &all_results));
         }
     } else {
-        let mut rev_deps = find_rev_deps(&binary_packages, &source_packages, &target_refs, &args);
+        let mut rev_deps = find_rev_deps(&index, &target_refs, &args);
 
         if !args.components.is_empty() {
             let allowed: HashSet<_> = args.components.iter().cloned().collect();

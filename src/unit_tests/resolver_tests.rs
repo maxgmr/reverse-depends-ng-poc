@@ -1,7 +1,7 @@
 //! AI-generated unit tests for resolver.rs.
 
 use super::*;
-use crate::{Args, BinaryPackage, SourcePackage, Vendor};
+use crate::{Args, BinaryPackage, ReverseIndex, SourcePackage, Vendor};
 use std::collections::HashSet;
 
 // source_binaries tests
@@ -101,13 +101,15 @@ fn binaries_provides_strips_version_constraints() {
 
 #[test]
 fn find_rev_deps_empty_inputs_returns_empty() {
-    assert!(find_rev_deps(&[], &[], &targets(&["libfoo"]), &base_args()).is_empty());
+    let index = ReverseIndex::build(&[], &[]);
+    assert!(find_rev_deps(&index, &targets(&["libfoo"]), &base_args()).is_empty());
 }
 
 #[test]
 fn find_rev_deps_basic_reverse_depends() {
     let bins = [bin("pkg-a", "amd64", "libfoo")];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     let entries = &result["Reverse-Depends"];
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].package, "pkg-a");
@@ -118,7 +120,8 @@ fn find_rev_deps_basic_reverse_depends() {
 #[test]
 fn find_rev_deps_non_target_dependency_not_included() {
     let bins = [bin("pkg-a", "amd64", "libbar")];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     assert!(result.is_empty());
 }
 
@@ -128,7 +131,8 @@ fn find_rev_deps_pre_depends_goes_to_reverse_pre_depends() {
         pre_depends: "libfoo".to_string(),
         ..bin("pkg-a", "amd64", "")
     }];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     assert!(result.contains_key("Reverse-Pre-Depends"));
     assert!(!result.contains_key("Reverse-Depends"));
 }
@@ -140,8 +144,9 @@ fn find_rev_deps_recommends_included_when_enabled() {
         ..bin("pkg-a", "amd64", "")
     }];
     // recommends: true by default in base_args
+    let index = ReverseIndex::build(&bins, &[]);
     assert!(
-        find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args())
+        find_rev_deps(&index, &targets(&["libfoo"]), &base_args())
             .contains_key("Reverse-Recommends")
     );
 }
@@ -156,8 +161,9 @@ fn find_rev_deps_recommends_excluded_when_disabled() {
         recommends: "libfoo".to_string(),
         ..bin("pkg-a", "amd64", "")
     }];
+    let index = ReverseIndex::build(&bins, &[]);
     assert!(
-        !find_rev_deps(&bins, &[], &targets(&["libfoo"]), &args).contains_key("Reverse-Recommends")
+        !find_rev_deps(&index, &targets(&["libfoo"]), &args).contains_key("Reverse-Recommends")
     );
 }
 
@@ -167,8 +173,9 @@ fn find_rev_deps_suggests_excluded_by_default() {
         suggests: "libfoo".to_string(),
         ..bin("pkg-a", "amd64", "")
     }];
+    let index = ReverseIndex::build(&bins, &[]);
     assert!(
-        !find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args())
+        !find_rev_deps(&index, &targets(&["libfoo"]), &base_args())
             .contains_key("Reverse-Suggests")
     );
 }
@@ -183,22 +190,25 @@ fn find_rev_deps_suggests_included_when_enabled() {
         suggests: "libfoo".to_string(),
         ..bin("pkg-a", "amd64", "")
     }];
+    let index = ReverseIndex::build(&bins, &[]);
     assert!(
-        find_rev_deps(&bins, &[], &targets(&["libfoo"]), &args).contains_key("Reverse-Suggests")
+        find_rev_deps(&index, &targets(&["libfoo"]), &args).contains_key("Reverse-Suggests")
     );
 }
 
 #[test]
 fn find_rev_deps_or_group_including_target_stored_as_joined_expression() {
     let bins = [bin("pkg-a", "amd64", "libbar | libfoo")];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     assert_eq!(result["Reverse-Depends"][0].dependency, "libbar | libfoo");
 }
 
 #[test]
 fn find_rev_deps_or_group_not_including_target_not_in_result() {
     let bins = [bin("pkg-a", "amd64", "libbar | libbaz")];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     assert!(result.is_empty());
 }
 
@@ -208,7 +218,8 @@ fn find_rev_deps_same_package_from_multiple_arches_merges_architectures() {
         bin("pkg-a", "amd64", "libfoo"),
         bin("pkg-a", "arm64", "libfoo"),
     ];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     let entries = &result["Reverse-Depends"];
     assert_eq!(
         entries.len(),
@@ -224,7 +235,8 @@ fn find_rev_deps_same_package_multiple_dep_exprs_creates_separate_entries() {
     // "libfoo, libfoo | libbar" → two OR groups both matching target
     // Each distinct dep_expr is a separate accumulator key
     let bins = vec![bin("pkg-a", "amd64", "libfoo, libfoo | libbar")];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     assert_eq!(result["Reverse-Depends"].len(), 2);
 }
 
@@ -235,7 +247,8 @@ fn find_rev_deps_results_sorted_by_package_name() {
         bin("pkg-a", "amd64", "libfoo"),
         bin("pkg-m", "amd64", "libfoo"),
     ];
-    let result = find_rev_deps(&bins, &[], &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &base_args());
     let names: Vec<&str> = result["Reverse-Depends"]
         .iter()
         .map(|e| e.package)
@@ -247,7 +260,8 @@ fn find_rev_deps_results_sorted_by_package_name() {
 fn find_rev_deps_binary_mode_ignores_source_packages() {
     // binary mode: want_build_depends() is false → source loop is skipped
     let sources = vec![src("src-a", "bin-a", "libfoo")];
-    assert!(find_rev_deps(&[], &sources, &targets(&["libfoo"]), &base_args()).is_empty());
+    let index = ReverseIndex::build(&[], &sources);
+    assert!(find_rev_deps(&index, &targets(&["libfoo"]), &base_args()).is_empty());
 }
 
 // find_rev_deps build mode tests
@@ -255,21 +269,16 @@ fn find_rev_deps_binary_mode_ignores_source_packages() {
 #[test]
 fn find_rev_deps_build_mode_ignores_binary_packages() {
     // build mode: want_build_depends() is true → binary loop is skipped
-    assert!(
-        find_rev_deps(
-            &[bin("pkg-a", "amd64", "libfoo")],
-            &[],
-            &targets(&["libfoo"]),
-            &build_args()
-        )
-        .is_empty()
-    );
+    let bins = [bin("pkg-a", "amd64", "libfoo")];
+    let index = ReverseIndex::build(&bins, &[]);
+    assert!(find_rev_deps(&index, &targets(&["libfoo"]), &build_args()).is_empty());
 }
 
 #[test]
 fn find_rev_deps_build_depends_goes_to_reverse_build_depends_with_source_arch() {
     let srcs = [src("src-a", "bin-a", "libfoo")];
-    let result = find_rev_deps(&[], &srcs, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &srcs);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     let entries = &result["Reverse-Build-Depends"];
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].package, "src-a");
@@ -282,7 +291,8 @@ fn find_rev_deps_build_depends_indep_goes_to_correct_group() {
         build_depends_indep: "libfoo".to_string(),
         ..src("src-a", "bin-a", "")
     }];
-    let result = find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &sources);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     assert!(result.contains_key("Reverse-Build-Depends-Indep"));
     assert!(!result.contains_key("Reverse-Build-Depends"));
 }
@@ -293,7 +303,8 @@ fn find_rev_deps_build_depends_arch_goes_to_correct_group() {
         build_depends_arch: "libfoo".to_string(),
         ..src("src-a", "bin-a", "")
     }];
-    let result = find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &sources);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     assert!(result.contains_key("Reverse-Build-Depends-Arch"));
     assert!(!result.contains_key("Reverse-Build-Depends"));
 }
@@ -304,7 +315,8 @@ fn find_rev_deps_testsuite_triggers_direct_match() {
         testsuite_triggers: "libfoo, other-pkg".to_string(),
         ..src("src-a", "bin-a", "")
     }];
-    let result = find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &sources);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     let entries = &result["Reverse-Testsuite-Triggers"];
     assert_eq!(entries[0].package, "src-a");
     assert_eq!(entries[0].dependency, ""); // empty dep string for testsuite triggers
@@ -318,7 +330,8 @@ fn find_rev_deps_testsuite_builddeps_expands_to_build_dep_match() {
         testsuite_triggers: "@builddeps@".to_string(),
         ..src("src-a", "bin-a", "")
     }];
-    let result = find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &sources);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     assert!(result.contains_key("Reverse-Testsuite-Triggers"));
 }
 
@@ -329,8 +342,9 @@ fn find_rev_deps_testsuite_builddeps_no_match_not_in_result() {
         testsuite_triggers: "@builddeps@".to_string(),
         ..src("src-a", "bin-a", "")
     }];
+    let index = ReverseIndex::build(&[], &sources);
     assert!(
-        !find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args())
+        !find_rev_deps(&index, &targets(&["libfoo"]), &build_args())
             .contains_key("Reverse-Testsuite-Triggers")
     );
 }
@@ -343,7 +357,8 @@ fn find_rev_deps_testsuite_direct_and_builddeps_match_creates_single_entry() {
         testsuite_triggers: "libfoo, @builddeps@".to_string(),
         ..src("src-a", "bin-a", "")
     }];
-    let result = find_rev_deps(&[], &sources, &targets(&["libfoo"]), &build_args());
+    let index = ReverseIndex::build(&[], &sources);
+    let result = find_rev_deps(&index, &targets(&["libfoo"]), &build_args());
     assert_eq!(result["Reverse-Testsuite-Triggers"].len(), 1);
 }
 
@@ -351,7 +366,8 @@ fn find_rev_deps_testsuite_direct_and_builddeps_match_creates_single_entry() {
 
 #[test]
 fn find_rev_deps_recursive_root_always_present_even_with_no_results() {
-    let result = find_rev_deps_recursive(&[], &[], "libfoo", &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&[], &[]);
+    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
     assert!(result.contains_key("libfoo"));
     assert!(result["libfoo"].is_empty());
 }
@@ -362,7 +378,8 @@ fn find_rev_deps_recursive_one_level_chain() {
         bin("pkg-a", "amd64", "libfoo"),
         bin("pkg-b", "amd64", "pkg-a"),
     ];
-    let result = find_rev_deps_recursive(&bins, &[], "libfoo", &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
     assert!(
         result["libfoo"]["Reverse-Depends"]
             .iter()
@@ -387,7 +404,8 @@ fn find_rev_deps_recursive_depth_limit_stops_traversal() {
         bin("pkg-b", "amd64", "pkg-a"),
         bin("pkg-c", "amd64", "pkg-b"),
     ];
-    let result = find_rev_deps_recursive(&bins, &[], "libfoo", &targets(&["libfoo"]), &args);
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &args);
     assert!(result.contains_key("libfoo"));
     assert!(result.contains_key("pkg-a")); // depth 1: pkg-a's rev deps processed
     assert!(!result.contains_key("pkg-b")); // depth 2: not reached
@@ -397,7 +415,8 @@ fn find_rev_deps_recursive_depth_limit_stops_traversal() {
 fn find_rev_deps_recursive_package_with_no_rev_deps_omitted_from_results() {
     // pkg-a depends on libfoo but nothing depends on pkg-a
     let bins = vec![bin("pkg-a", "amd64", "libfoo")];
-    let result = find_rev_deps_recursive(&bins, &[], "libfoo", &targets(&["libfoo"]), &base_args());
+    let index = ReverseIndex::build(&bins, &[]);
+    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
     assert!(result.contains_key("libfoo")); // root always inserted
     assert!(!result.contains_key("pkg-a")); // no rev deps → omitted
 }

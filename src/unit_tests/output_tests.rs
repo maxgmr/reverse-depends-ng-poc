@@ -279,12 +279,12 @@ fn verbose_output_recursive_visited_set_prevents_cycle() {
 
 // Helpers
 
-fn entry<'a>(package: &'a str, dependency: &str, arches: &[&'static str]) -> RevDepEntry<'a> {
+fn entry<'a>(package: &'a str, dependency: &'a str, arches: &[&'static str]) -> RevDepEntry<'a> {
     RevDepEntry {
         package,
         architectures: arches.to_vec(),
         component: "main",
-        dependency: dependency.to_string(),
+        dependency: dependency,
     }
 }
 
