@@ -28,6 +28,9 @@ Proof of concept for a modernized `reverse-depends`.
   `Provides:` dependencies
 - `-u`/`--service-url` has been removed; it's no longer applicable
   since the archive is queried directly
+- Searches now only query the -release pocket by default if the queried
+  release is the devel release, significantly reducing the number of
+  HTTP requests sent to the archive by default.
 
 ## Example usage
 

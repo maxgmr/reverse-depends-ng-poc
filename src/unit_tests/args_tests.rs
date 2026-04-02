@@ -1,4 +1,5 @@
 //! AI-generated unit tests for args.rs
+#![allow(clippy::used_underscore_items)]
 
 use super::*;
 use crate::Vendor;
@@ -68,8 +69,35 @@ fn selected_components_mixed_valid_and_invalid_returns_valid_only() {
 #[test]
 fn selected_pockets_empty_excludes_proposed() {
     assert_eq!(
-        base_args().selected_pockets().unwrap(),
+        base_args()._selected_pockets(false).unwrap(),
         Vendor::Ubuntu.pockets()
+    );
+}
+
+#[test]
+fn selected_pockets_devel_default_release_only() {
+    assert_eq!(base_args()._selected_pockets(true).unwrap(), vec![""]);
+}
+
+#[test]
+fn selected_pockets_devel_default_proposed_appends_proposed() {
+    let args = Args {
+        proposed: true,
+        ..base_args()
+    };
+    assert_eq!(args._selected_pockets(true).unwrap(), vec!["", "-proposed"]);
+}
+
+#[test]
+fn selected_pockets_devel_include_extra_pockets_when_filtered() {
+    let args = Args {
+        proposed: true,
+        pockets: strings(&["-security", "updates"]),
+        ..base_args()
+    };
+    assert_eq!(
+        args._selected_pockets(true).unwrap(),
+        vec!["-updates", "-security", "-proposed"]
     );
 }
 
@@ -81,7 +109,7 @@ fn selected_pockets_empty_proposed_flag_appends_proposed() {
     };
     let mut expected = Vendor::Ubuntu.pockets().to_vec();
     expected.push("-proposed");
-    assert_eq!(args.selected_pockets().unwrap(), expected);
+    assert_eq!(args._selected_pockets(false).unwrap(), expected);
 }
 
 #[test]
@@ -90,7 +118,7 @@ fn selected_pockets_dash_prefix_accepted() {
         pockets: strings(&["-security"]),
         ..base_args()
     };
-    assert_eq!(args.selected_pockets().unwrap(), vec!["-security"]);
+    assert_eq!(args._selected_pockets(false).unwrap(), vec!["-security"]);
 }
 
 #[test]
@@ -100,7 +128,7 @@ fn selected_pockets_no_dash_prefix_normalized() {
         pockets: strings(&["security"]),
         ..base_args()
     };
-    assert_eq!(args.selected_pockets().unwrap(), vec!["-security"]);
+    assert_eq!(args._selected_pockets(false).unwrap(), vec!["-security"]);
 }
 
 #[test]
@@ -109,7 +137,7 @@ fn selected_pockets_release_normalized_from_release() {
         pockets: strings(&["release"]),
         ..base_args()
     };
-    assert_eq!(args.selected_pockets().unwrap(), vec![""]);
+    assert_eq!(args._selected_pockets(false).unwrap(), vec![""]);
 }
 
 #[test]
@@ -118,7 +146,7 @@ fn selected_pockets_release_normalized_from_dash_release() {
         pockets: strings(&["-release"]),
         ..base_args()
     };
-    assert_eq!(args.selected_pockets().unwrap(), vec![""]);
+    assert_eq!(args._selected_pockets(false).unwrap(), vec![""]);
 }
 
 #[test]
@@ -127,7 +155,7 @@ fn selected_pockets_all_invalid_is_err() {
         pockets: strings(&["nonexistent"]),
         ..base_args()
     };
-    assert!(args.selected_pockets().is_err());
+    assert!(args._selected_pockets(false).is_err());
 }
 
 #[test]
@@ -137,7 +165,7 @@ fn selected_pockets_proposed_flag_adds_proposed_to_filtered_result() {
         proposed: true,
         ..base_args()
     };
-    let pockets = args.selected_pockets().unwrap();
+    let pockets = args._selected_pockets(false).unwrap();
     assert!(pockets.contains(&"-security"));
     assert!(pockets.contains(&"-proposed"));
 }
@@ -149,7 +177,7 @@ fn selected_pockets_proposed_flag_no_duplicate_when_pocket_already_listed() {
         proposed: true,
         ..base_args()
     };
-    let pockets = args.selected_pockets().unwrap();
+    let pockets = args._selected_pockets(false).unwrap();
     let count = pockets.iter().filter(|&&p| p == "-proposed").count();
     assert_eq!(count, 1);
 }

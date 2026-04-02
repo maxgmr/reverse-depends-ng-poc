@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::Vendor;
+use crate::{Vendor, detect_devel_release};
 
 use clap::Parser;
 
@@ -117,17 +117,34 @@ impl Args {
     /// selected by [`Args::pockets`].
     ///
     /// If [`Args::pockets`] is empty, then all pockets except
-    /// `proposed` are selected.
+    /// `proposed` are selected, unless it's the current devel release,
+    /// in which case only the `release` pocket is selected.
     ///
     /// # Errors
     ///
     /// This function returns an [`anyhow::Error`] if none of the
-    /// provided pockets exist in the archive.
+    /// provided pockets exist in the archive, or if there is a failure
+    /// when trying to detect the current devel release.
     pub fn selected_pockets(&self) -> anyhow::Result<Vec<&'static str>> {
+        let is_devel = self.release.is_none() || self.release == Some(detect_devel_release()?);
+        #[allow(clippy::used_underscore_items)]
+        self._selected_pockets(is_devel)
+    }
+
+    /// Helper function for [`Self::selected_pockets`] to make unit
+    /// tests possible without querying the devel release.
+    fn _selected_pockets(&self, is_devel: bool) -> anyhow::Result<Vec<&'static str>> {
         // Select all pockets except proposed if no pocket args given,
         // also enabling proposed if --proposed is given
+        //
+        // If the given release is the current devel release, skip the
+        // pockets which only apply to post-devel releases
         if self.pockets.is_empty() {
-            let mut pockets = self.vendor.pockets().to_vec();
+            let mut pockets = if is_devel {
+                vec![""]
+            } else {
+                self.vendor.pockets().to_vec()
+            };
             if self.proposed {
                 pockets.push("-proposed");
             }
