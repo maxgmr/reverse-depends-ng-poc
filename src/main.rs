@@ -8,7 +8,7 @@ use reverse_depends_ng_poc::{
     verbose_output_recursive,
 };
 
-const USER_AGENT: &str = concat!("reverse-depends/", env!("CARGO_PKG_VERSION"));
+const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
