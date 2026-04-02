@@ -85,6 +85,18 @@ fn binaries_provides_ignores_non_target_packages() {
     assert!(!result.contains("virtual-b"));
 }
 
+#[test]
+fn binaries_provides_strips_version_constraints() {
+    let bins = vec![BinaryPackage {
+        provides: "virtual-a (= 3.0.2), virtual-b (>> 1.0.0-alpha1)".to_string(),
+        ..bin("pkg-a", "amd64", "")
+    }];
+    assert_eq!(
+        binaries_provides(&bins, &sset(&["pkg-a"])),
+        HashSet::from(["virtual-a".to_string(), "virtual-b".to_string()])
+    );
+}
+
 // find_rev_deps binary mode tests
 
 #[test]

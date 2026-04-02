@@ -4,7 +4,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{Args, BinaryPackage, SourcePackage, extract_name, parse_dep_names};
+use crate::{Args, BinaryPackage, SourcePackage, extract_name, parse_dep_names, parse_provides};
 
 /// A single reverse dependency: a package that depends on the given
 /// target.
@@ -58,10 +58,9 @@ pub fn binaries_provides(
         .iter()
         .filter(|p| target_names.contains(&p.name))
         .flat_map(|p| {
-            p.provides
-                .split(',')
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
+            parse_provides(&p.provides)
+                .into_iter()
+                .map(ToString::to_string)
         })
         .collect()
 }
