@@ -20,6 +20,7 @@ Proof of concept for a modernized `reverse-depends`.
 
 - Slower than original `reverse-depends` (but faster than
   `checkrdepends`)
+- Larger codebase than both `reverse-depends` and `checkrdepends`
 
 ## Changes to the `reverse-depends` interface
 
