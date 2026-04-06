@@ -150,7 +150,8 @@ pub async fn fetch_binaries(
     Ok(all_packages)
 }
 
-/// Download a `.gz` URL and return its decompressed content as a `String`.
+/// Download a `.gz` URL and return its decompressed content as a
+/// [`String`], returning an empty [`String`] if HTTP 404 is returned.
 async fn fetch_gz(client: &Client, url: &str) -> anyhow::Result<String> {
     let response = client
         .get(url)
@@ -158,8 +159,14 @@ async fn fetch_gz(client: &Client, url: &str) -> anyhow::Result<String> {
         .await
         .with_context(|| format!("GET {url}"))?;
 
-    if !response.status().is_success() {
-        anyhow::bail!("HTTP {} for {url}", response.status());
+    match (response.status().is_success(), response.status().as_u16()) {
+        // Return an empty string if 404
+        (false, 404) => return Ok(String::new()),
+
+        // Return an error if any other error
+        (false, _) => anyhow::bail!("HTTP {} for {url}", response.status()),
+        // Continue if success
+        (true, _) => (),
     }
 
     let bytes = response
