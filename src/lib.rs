@@ -14,6 +14,7 @@ use anyhow::{Context, anyhow};
 
 mod archive;
 mod args;
+mod cache;
 mod output;
 mod parsing;
 mod resolver;
@@ -21,6 +22,7 @@ mod vendor;
 
 pub use archive::*;
 pub use args::*;
+pub(crate) use cache::{load_cache, save_cache};
 pub use output::*;
 pub use parsing::*;
 pub use resolver::*;
