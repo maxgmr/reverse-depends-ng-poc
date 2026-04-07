@@ -2,16 +2,30 @@
 
 use std::{io::Read, sync::Arc};
 
-use crate::{Args, BinaryPackage, SourcePackage, parse_binary_packages, parse_source_packages};
+use crate::{
+    Args, BinaryPackage, SourcePackage, load_cache, parse_binary_packages, parse_source_packages,
+    save_cache,
+};
 
 use anyhow::Context;
 use flate2::read::GzDecoder;
 use futures::future::join_all;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
 /// Max number of requests at one time.
 const MAX_CONCURRENT: usize = 16;
+
+/// The different types of responses from an archive query.
+enum FetchResult {
+    /// HTTP 200: decompressed body and optional ETag from response
+    Fresh { text: String, etag: Option<String> },
+    /// HTTP 304: the server confirmed the cached copy is still current
+    NotModified,
+    /// HTTP 404: resource does not exist for this release/component
+    NotFound,
+}
 
 /// Fetch the source packages of the given component and pocket combos
 /// for the given distro release. If successful, this function will
@@ -45,25 +59,17 @@ pub async fn fetch_sources(
                 format!("{archive_base}/dists/{release}{pocket}/{component}/source/Sources.gz");
             let client = client.clone();
             let sem = Arc::clone(&sem);
+            let cache = args.cache;
 
             handles.push(tokio::spawn(async move {
                 let _permit = sem.acquire().await.expect("semaphore closed");
 
-                let text = fetch_gz(&client, &url)
-                    .await
-                    .with_context(|| format!("Failed to fetch Sources.gz from {url}"))?;
-                // If text is empty, then that component just doesn't
-                // exist for that release.
-                if text.is_empty() {
-                    return Ok(Vec::new());
-                }
-
-                let packages =
-                    parse_source_packages(&text, component, pocket).with_context(|| {
-                        format!("Failed to parse downloaded Sources.gz for {component} in {pocket}")
-                    })?;
-
-                Ok::<_, anyhow::Error>(packages)
+                fetch_parsed_cached(&client, &url, cache, |text| {
+                    parse_source_packages(text, component, pocket).with_context(|| {
+                        format!("Failed to parse Sources.gz for {component} in {pocket}")
+                    })
+                })
+                .await
             }));
         }
     }
@@ -118,22 +124,16 @@ pub async fn fetch_binaries(
                 );
                 let client = client.clone();
                 let sem = Arc::clone(&sem);
+                let cache = args.cache;
 
                 handles.push(tokio::spawn(async move {
                     let _permit = sem.acquire().await.expect("semaphore closed");
-
-                    let text = fetch_gz(&client, &url)
-                        .await
-                        .with_context(|| format!("Failed to fetch Packages.gz from {url}"))?;
-                    // If text is empty, then that component just
-                    // doesn't exist for that release.
-                    if text.is_empty() {
-                        return Ok(Vec::new());
-                    }
-
-                    let packages = parse_binary_packages(&text, arch, component, pocket).with_context(|| { format!("Failed to parse downloaded Packages.gz for {component} in {pocket} for arch {arch}") })?;
-
-                    Ok::<_, anyhow::Error>(packages)
+                    fetch_parsed_cached(&client, &url, cache, |text| {
+                        parse_binary_packages(text, arch, component, pocket).with_context(|| {
+                            format!("Failed to parse Packages.gz for {component} in {pocket} for arch {arch}")
+                        })
+                    })
+                    .await
                 }));
             }
         }
@@ -150,35 +150,85 @@ pub async fn fetch_binaries(
     Ok(all_packages)
 }
 
-/// Download a `.gz` URL and return its decompressed content as a
-/// [`String`], returning an empty [`String`] if HTTP 404 is returned.
-async fn fetch_gz(client: &Client, url: &str) -> anyhow::Result<String> {
-    let response = client
-        .get(url)
-        .send()
+/// Fetch a `.gz` archive URL, parse it with `parse`, and cache the
+/// result. On subsequent calls the cached copy is returned immediately
+/// if the server response with 304 Not Modified.
+///
+/// When `cache` is `false`, the on-disk cache is not read but a fresh
+/// result is still written so the cache stays warm for future runs.
+async fn fetch_parsed_cached<T, F>(
+    client: &Client,
+    url: &str,
+    cache: bool,
+    parse: F,
+) -> anyhow::Result<Vec<T>>
+where
+    T: Serialize + for<'de> Deserialize<'de>,
+    F: FnOnce(&str) -> anyhow::Result<Vec<T>>,
+{
+    let cached = if cache {
+        load_cache::<Vec<T>>(url)
+    } else {
+        None
+    };
+    let cached_etag = cached
+        .as_ref()
+        .and_then(|(etag, _): &(Option<String>, Vec<T>)| etag.as_deref());
+
+    match fetch_gz_conditional(client, url, cached_etag)
         .await
-        .with_context(|| format!("GET {url}"))?;
+        .with_context(|| format!("Failed to fetch {url}"))?
+    {
+        FetchResult::NotFound => Ok(Vec::new()),
+        FetchResult::NotModified => Ok(cached.unwrap().1),
+        FetchResult::Fresh { text, etag } => {
+            let data = parse(&text)?;
+            save_cache(url, etag.as_deref(), &data);
+            Ok(data)
+        }
+    }
+}
+
+/// Perform a GET for a `.gz` URL, optionally sending `If-None-Match`
+/// when `etag` is [`Some`].
+async fn fetch_gz_conditional(
+    client: &Client,
+    url: &str,
+    etag: Option<&str>,
+) -> anyhow::Result<FetchResult> {
+    let mut req = client.get(url);
+    if let Some(etag) = etag {
+        req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+    }
+    let response = req.send().await.with_context(|| format!("GET {url}"))?;
 
     match (response.status().is_success(), response.status().as_u16()) {
-        // Return an empty string if 404
-        (false, 404) => return Ok(String::new()),
+        (_, 304) => return Ok(FetchResult::NotModified),
+        (_, 404) => return Ok(FetchResult::NotFound),
+        (false, code) => anyhow::bail!("HTTP {code} for {url}"),
+        _ => {}
+    }
 
-        // Return an error if any other error
-        (false, _) => anyhow::bail!("HTTP {} for {url}", response.status()),
-        // Continue if success
-        (true, _) => (),
+    // Fresh result, get ETag and decode the GZ data
+
+    let etag = response
+        .headers()
+        .get(reqwest::header::ETAG)
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_owned);
+    if etag.is_none() {
+        eprintln!("Warning: {url} did not return an ETag header");
     }
 
     let bytes = response
         .bytes()
         .await
         .with_context(|| format!("Failed to read body of {url}"))?;
-
     let mut decoder = GzDecoder::new(bytes.as_ref());
     let mut text = String::new();
     decoder
         .read_to_string(&mut text)
         .with_context(|| format!("Failed to decompress {url}"))?;
 
-    Ok(text)
+    Ok(FetchResult::Fresh { text, etag })
 }
