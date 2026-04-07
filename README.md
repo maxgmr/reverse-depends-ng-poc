@@ -15,6 +15,8 @@ Proof of concept for a modernized `reverse-depends`.
   recursive search is broken.
 - Allows filtering by pocket.
 - Allows inclusion of the -proposed pocket.
+- Caches results from the archive, only redownloading if the archive
+  changed since the last request.
 
 ## Downsides
 
@@ -50,5 +52,6 @@ $ reverse-depends-ng-poc gawk -p
 ## Planned
 
 - Debian archive querying
-- Investigation into further performace improvements
-- Caching to make subsequent searches faster
+- Local apt cache querying
+- Investigation into further performance improvements
+- Ensure cache misses are minimized
