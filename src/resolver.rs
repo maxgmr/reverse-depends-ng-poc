@@ -13,9 +13,9 @@ pub struct RevDepEntry<'a> {
     /// Name of the package.
     pub package: &'a str,
     /// Architectures on which this dependency exists.
-    pub architectures: Vec<&'static str>,
+    pub architectures: Vec<&'a str>,
     /// Archive component.
-    pub component: &'static str,
+    pub component: &'a str,
     /// The raw dependency expression.
     pub dependency: &'a str,
 }
@@ -249,7 +249,7 @@ pub fn find_rev_deps<'a>(
                     .or_insert_with(|| RevDepEntry {
                         package: &r.package.name,
                         architectures: vec!["source"],
-                        component: r.package.component,
+                        component: &r.package.component,
                         dependency: &r.dep_expr,
                     });
             }
@@ -276,11 +276,11 @@ pub fn find_rev_deps<'a>(
                     .or_insert_with(|| RevDepEntry {
                         package: &r.package.name,
                         architectures: Vec::new(),
-                        component: r.package.component,
+                        component: &r.package.component,
                         dependency: &r.dep_expr,
                     });
-                if !entry.architectures.contains(&r.package.arch) {
-                    entry.architectures.push(r.package.arch);
+                if !entry.architectures.contains(&r.package.arch.as_str()) {
+                    entry.architectures.push(&r.package.arch);
                 }
             }
         }

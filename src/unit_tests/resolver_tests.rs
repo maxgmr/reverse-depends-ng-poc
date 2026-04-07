@@ -191,9 +191,7 @@ fn find_rev_deps_suggests_included_when_enabled() {
         ..bin("pkg-a", "amd64", "")
     }];
     let index = ReverseIndex::build(&bins, &[]);
-    assert!(
-        find_rev_deps(&index, &targets(&["libfoo"]), &args).contains_key("Reverse-Suggests")
-    );
+    assert!(find_rev_deps(&index, &targets(&["libfoo"]), &args).contains_key("Reverse-Suggests"));
 }
 
 #[test]
@@ -453,9 +451,9 @@ fn build_args() -> Args {
 fn bin(name: &str, arch: &'static str, depends: &str) -> BinaryPackage {
     BinaryPackage {
         name: name.to_string(),
-        arch,
-        component: "main",
-        pocket: "",
+        arch: arch.to_string(),
+        component: "main".to_string(),
+        pocket: String::new(),
         depends: depends.to_string(),
         pre_depends: String::new(),
         recommends: String::new(),
@@ -467,8 +465,8 @@ fn bin(name: &str, arch: &'static str, depends: &str) -> BinaryPackage {
 fn src(name: &str, binaries: &str, build_depends: &str) -> SourcePackage {
     SourcePackage {
         name: name.to_string(),
-        component: "main",
-        pocket: "",
+        component: "main".to_string(),
+        pocket: String::new(),
         binaries: binaries.to_string(),
         build_depends: build_depends.to_string(),
         build_depends_indep: String::new(),

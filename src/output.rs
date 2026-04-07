@@ -45,7 +45,7 @@ pub fn verbose_output(
     result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>,
 ) -> String {
     let mut output = String::new();
-    let all_arches: HashSet<&'static str> = result
+    let all_arches: HashSet<&str> = result
         .values()
         .flat_map(|entries| entries.iter())
         .flat_map(|e| e.architectures.iter().copied())
@@ -75,7 +75,7 @@ pub fn verbose_output_recursive<'a>(
 
     // Collect arches across all depth labels so arch labels are
     // consistent
-    let all_arches: HashSet<&'static str> = all_results
+    let all_arches: HashSet<&str> = all_results
         .values()
         .flat_map(|results| results.values())
         .flat_map(|entries| entries.iter())
@@ -155,7 +155,7 @@ fn collect_and_sort_names<'a>(iter: impl Iterator<Item = &'a str>) -> String {
 /// after each entry, which can be passed as a closure to this function.
 fn write_sections<'a, F>(
     result: &HashMap<&'static str, Vec<RevDepEntry<'a>>>,
-    all_arches: &HashSet<&'static str>,
+    all_arches: &HashSet<&str>,
     queried_package: &str,
     output: &mut String,
     mut after_entry: F,
@@ -188,7 +188,7 @@ fn write_sections<'a, F>(
 fn render_subtree<'a>(
     package: &str,
     all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
-    all_arches: &HashSet<&'static str>,
+    all_arches: &HashSet<&str>,
     visited: &mut HashSet<&'a str>,
     depth: usize,
     output: &mut String,
@@ -243,7 +243,7 @@ fn ordered_fields(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> Vec<&
 
 /// Write the footer, to `output`, which denotes the architectures the
 /// unlabelled packages are reverse dependencies on.
-fn write_arch_footer(all_arches: &HashSet<&'static str>, output: &mut String) {
+fn write_arch_footer(all_arches: &HashSet<&str>, output: &mut String) {
     if !all_arches.is_empty() {
         let mut sorted: Vec<&str> = all_arches.iter().copied().collect();
         sorted.sort_unstable();
@@ -264,16 +264,16 @@ fn write_arch_footer(all_arches: &HashSet<&'static str>, output: &mut String) {
 /// differs from the bare queried package name.
 fn format_entry(
     entry: &RevDepEntry<'_>,
-    all_arches: &HashSet<&'static str>,
+    all_arches: &HashSet<&str>,
     queried_package: &str,
     depth: usize,
 ) -> String {
     let indent = "  ".repeat(depth);
 
     let arch_label = {
-        let entry_arch_set: HashSet<_> = entry.architectures.iter().collect();
-        let all_arch_set: HashSet<_> = all_arches.iter().collect();
-        let only_source_set = HashSet::from([&"source"]);
+        let entry_arch_set: HashSet<&str> = entry.architectures.iter().copied().collect();
+        let all_arch_set: HashSet<&str> = all_arches.iter().copied().collect();
+        let only_source_set: HashSet<&str> = HashSet::from(["source"]);
         if entry_arch_set == all_arch_set || entry_arch_set == only_source_set {
             // No need to print a label if the package is source only or
             // contains all architectures.

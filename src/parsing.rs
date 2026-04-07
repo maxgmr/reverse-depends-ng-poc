@@ -3,16 +3,17 @@
 
 use anyhow::Context;
 use deb822_fast::borrowed::BorrowedParser;
+use serde::{Deserialize, Serialize};
 
 /// A source package from the archive along with all its build dependencies.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourcePackage {
     /// The source package's name.
     pub name: String,
     /// The archive component.
-    pub component: &'static str,
+    pub component: String,
     /// The pocket.
-    pub pocket: &'static str,
+    pub pocket: String,
     /// The raw `Binaries` field.
     pub binaries: String,
     /// The raw `Build-Depends` field.
@@ -27,17 +28,17 @@ pub struct SourcePackage {
 
 /// A binary package from the archive along with all its package
 /// relationships.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BinaryPackage {
     /// The binary package's name.
     pub name: String,
     /// The architecture of the `Packages.gz` file from which this
     /// binary package came.
-    pub arch: &'static str,
+    pub arch: String,
     /// The archive component.
-    pub component: &'static str,
+    pub component: String,
     /// The pocket.
-    pub pocket: &'static str,
+    pub pocket: String,
     /// The raw `Depends` field.
     pub depends: String,
     /// The raw `Pre-Depends` field.
@@ -81,8 +82,8 @@ pub fn parse_source_packages(
         .filter_map(|paragraph| {
             Some(SourcePackage {
                 name: paragraph.get_single("package")?.to_string(),
-                component,
-                pocket,
+                component: component.to_string(),
+                pocket: pocket.to_string(),
                 binaries: paragraph.get_single("binary")?.to_string(),
                 build_depends: paragraph
                     .get_single("build-depends")
@@ -145,9 +146,9 @@ pub fn parse_binary_packages(
         .filter_map(|paragraph| {
             Some(BinaryPackage {
                 name: paragraph.get_single("package")?.to_string(),
-                arch,
-                component,
-                pocket,
+                arch: arch.to_string(),
+                component: component.to_string(),
+                pocket: pocket.to_string(),
                 depends: paragraph
                     .get_single("depends")
                     .unwrap_or_default()
