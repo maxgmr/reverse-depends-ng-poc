@@ -351,6 +351,7 @@ fn base_args() -> Args {
         list: false,
         recursive: false,
         recursive_depth: DEFAULT_DEPTH,
+        cache: true,
     }
 }
 

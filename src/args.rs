@@ -9,8 +9,6 @@ use clap::Parser;
 const ARCH_DEFAULT: &str = "any";
 const DEFAULT_DEPTH: usize = 10;
 
-// TODO potential optimization: add "cached" option which allows the
-// usage of cached data
 #[allow(clippy::doc_markdown)]
 /// List reverse-dependencies of an Ubuntu/Debian package.
 ///
@@ -51,7 +49,7 @@ pub struct Args {
     /// (repeatable)
     #[arg(short, long, default_value = ARCH_DEFAULT)]
     pub arches: Vec<String>,
-    /// Skip ports architectures.
+    /// Skip ports architectures
     #[arg(long = "no-ports", action = clap::ArgAction::SetFalse)]
     pub ports: bool,
     /// Only consider reverse dependencies in COMPONENT (repeatable)
@@ -77,6 +75,10 @@ pub struct Args {
         default_value_t = DEFAULT_DEPTH
     )]
     pub recursive_depth: usize,
+    /// Avoid using any archive caches, querying new archive data no
+    /// matter what
+    #[arg(short = 'C', long = "no-cache", action = clap::ArgAction::SetFalse)]
+    pub cache: bool,
 }
 impl Args {
     /// Get the list of components in the selected [`Vendor`] which
