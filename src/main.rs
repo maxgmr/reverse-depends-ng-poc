@@ -8,6 +8,10 @@ use reverse_depends_ng_poc::{
     verbose_output, verbose_output_recursive,
 };
 
+#[cfg(feature = "jemalloc")]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 #[tokio::main(flavor = "multi_thread")]
