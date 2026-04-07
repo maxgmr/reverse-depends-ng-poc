@@ -64,9 +64,6 @@ pub struct BinaryPackage {
 /// This function returns an [`anyhow::Error`] in the following
 /// situations:
 ///
-/// - The final list of source packages is empty, meaning there was a
-///   problem with parsing the text.
-///
 /// - The text is unparseable in the DEB822 format.
 pub fn parse_source_packages(
     content: &str,
@@ -105,12 +102,6 @@ pub fn parse_source_packages(
         })
         .collect();
 
-    if source_packages.is_empty() {
-        anyhow::bail!(
-            "List for component {component} and pocket {pocket} is empty; there was a problem parsing the text"
-        );
-    }
-
     Ok(source_packages)
 }
 
@@ -126,9 +117,6 @@ pub fn parse_source_packages(
 ///
 /// This function returns an [`anyhow::Error`] in the following
 /// situations:
-///
-/// - The final list of binary packages is empty, meaning there was a
-///   problem with parsing the text.
 ///
 /// - The text is unparseable in the DEB822 format.
 pub fn parse_binary_packages(
@@ -172,12 +160,6 @@ pub fn parse_binary_packages(
             })
         })
         .collect();
-
-    if binary_packages.is_empty() {
-        anyhow::bail!(
-            "List for component {component} and pocket {pocket} for arch {arch} is empty; there was a problem parsing the text"
-        );
-    }
 
     Ok(binary_packages)
 }
