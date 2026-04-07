@@ -181,6 +181,27 @@ pub fn parse_dep_names(raw_field: &str) -> Vec<Vec<&str>> {
         .collect()
 }
 
+/// Parse a raw dependency string into OR-groups, returning each group
+/// as a `(raw_group, extracted_names)` pair. The raw-group string is
+/// borrowed directly from the input, retaining version constraints and
+/// architecture restrictions; only the name list is stripped.
+///
+/// [`parse_dep_names`] is used when only the name lists are needed.
+#[must_use]
+pub fn parse_dep_groups(raw_field: &str) -> Vec<(&str, Vec<&str>)> {
+    raw_field
+        .split(',')
+        .filter_map(|and_group| {
+            let names: Vec<&str> = and_group.split('|').filter_map(extract_name).collect();
+            if names.is_empty() {
+                None
+            } else {
+                Some((and_group.trim(), names))
+            }
+        })
+        .collect()
+}
+
 /// Parse a raw `Provides` field into a list of packages, stripping out
 /// the version constraints and architecture restrictions, as only the
 /// package names themselves are needed for reverse-dep lookup.

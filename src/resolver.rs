@@ -4,7 +4,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{Args, BinaryPackage, SourcePackage, extract_name, parse_dep_names, parse_provides};
+use crate::{
+    Args, BinaryPackage, SourcePackage, extract_name, parse_dep_groups, parse_dep_names,
+    parse_provides,
+};
 
 /// A single reverse dependency: a package that depends on the given
 /// target.
@@ -65,16 +68,12 @@ impl<'a> ReverseIndex<'a> {
                     continue;
                 }
 
-                for or_group in parse_dep_names(raw_field) {
-                    let dep_expr = or_group.join(" | ");
-                    // Register this OR-expression under every name in
-                    // the group so a lookup on any alternative finds
-                    // it.
-                    for dep_name in or_group {
+                for (raw_or_group, dep_names) in parse_dep_groups(raw_field) {
+                    for dep_name in dep_names {
                         binary_map.entry(dep_name).or_default().push(BinRevRef {
                             package: bin,
                             group,
-                            dep_expr: dep_expr.clone(),
+                            dep_expr: raw_or_group,
                         });
                     }
                 }
@@ -93,13 +92,12 @@ impl<'a> ReverseIndex<'a> {
                     continue;
                 }
 
-                for or_group in parse_dep_names(raw_field) {
-                    let dep_expr = or_group.join(" | ");
-                    for dep_name in or_group {
+                for (raw_or_group, dep_names) in parse_dep_groups(raw_field) {
+                    for dep_name in dep_names {
                         source_map.entry(dep_name).or_default().push(SrcRevRef {
                             package: src,
                             group,
-                            dep_expr: dep_expr.clone(),
+                            dep_expr: raw_or_group,
                         });
                     }
                 }
@@ -138,7 +136,7 @@ impl<'a> ReverseIndex<'a> {
                     source_map.entry(dep_name).or_default().push(SrcRevRef {
                         package: src,
                         group: "Reverse-Testsuite-Triggers",
-                        dep_expr: String::new(),
+                        dep_expr: "",
                     });
                 }
             }
@@ -160,7 +158,7 @@ pub struct BinRevRef<'a> {
     /// Output group name, e.g. `"Reverse-Depends"`.
     pub group: &'static str,
     /// Full OR-expression, e.g. `"libfoo | libbar"`.
-    pub dep_expr: String,
+    pub dep_expr: &'a str,
 }
 
 /// A single source package -> dependency name relationship stored in
@@ -173,7 +171,7 @@ pub struct SrcRevRef<'a> {
     pub group: &'static str,
     /// Full OR-expression; always empty for
     /// `Reverse-Testsuite-Triggers`
-    pub dep_expr: String,
+    pub dep_expr: &'a str,
 }
 
 /// Return all binary package names produced by the source package with
@@ -245,12 +243,12 @@ pub fn find_rev_deps<'a>(
                 // of how many targets matched it.
                 acc.entry(r.group)
                     .or_default()
-                    .entry((&r.package.name, &r.dep_expr))
+                    .entry((r.package.name.as_str(), r.dep_expr))
                     .or_insert_with(|| RevDepEntry {
                         package: &r.package.name,
                         architectures: vec!["source"],
                         component: &r.package.component,
-                        dependency: &r.dep_expr,
+                        dependency: r.dep_expr,
                     });
             }
         }
@@ -272,12 +270,12 @@ pub fn find_rev_deps<'a>(
                 let entry = acc
                     .entry(r.group)
                     .or_default()
-                    .entry((&r.package.name, &r.dep_expr))
+                    .entry((r.package.name.as_str(), r.dep_expr))
                     .or_insert_with(|| RevDepEntry {
                         package: &r.package.name,
                         architectures: Vec::new(),
                         component: &r.package.component,
-                        dependency: &r.dep_expr,
+                        dependency: r.dep_expr,
                     });
                 if !entry.architectures.contains(&r.package.arch.as_str()) {
                     entry.architectures.push(&r.package.arch);
