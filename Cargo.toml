@@ -17,7 +17,7 @@ jemalloc = ["dep:tikv-jemallocator"]
 anyhow = "1.0"
 clap = { version = "4.6", features = ["derive"] }
 deb822-fast = "0.2"
-flate2 = "1.1"
+flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
 futures = "0.3"
 postcard = { version = "1.1", features = ["use-std"] }
 reqwest = { version = "0.13", default-features = false }
