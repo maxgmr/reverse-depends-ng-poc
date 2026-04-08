@@ -1,7 +1,11 @@
 use std::collections::{HashMap, HashSet};
+use std::time::Duration;
 
 use anyhow::{Context, bail};
 use clap::Parser;
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
+
 use reverse_depends_ng_poc::{
     Args, ReverseIndex, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources,
     find_rev_deps, find_rev_deps_recursive, list_output, list_output_recursive, source_binaries,
@@ -13,6 +17,9 @@ use reverse_depends_ng_poc::{
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
 const USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
+const DEFAULT_MAX_RETRIES: u32 = 5;
+const DEFAULT_MIN_DELAY: Duration = Duration::from_millis(500);
+const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(5);
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
@@ -32,10 +39,17 @@ async fn run(args: Args) -> anyhow::Result<()> {
         None => &detect_devel_release()?,
     };
 
-    let client = reqwest::Client::builder()
-        .no_gzip()
-        .user_agent(USER_AGENT)
-        .build()?;
+    let retry_policy = ExponentialBackoff::builder()
+        .retry_bounds(DEFAULT_MIN_DELAY, DEFAULT_MAX_DELAY)
+        .build_with_max_retries(DEFAULT_MAX_RETRIES);
+    let client = ClientBuilder::new(
+        reqwest::Client::builder()
+            .no_gzip()
+            .user_agent(USER_AGENT)
+            .build()?,
+    )
+    .with(RetryTransientMiddleware::new_with_policy(retry_policy))
+    .build();
 
     let source_packages = if args.need_source_packages() {
         fetch_sources(&client, release, &args)

@@ -10,7 +10,7 @@ use crate::{
 use anyhow::Context;
 use flate2::read::GzDecoder;
 use futures::future::join_all;
-use reqwest::Client;
+use reqwest_middleware::ClientWithMiddleware;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Semaphore;
 
@@ -44,7 +44,7 @@ enum FetchResult {
 /// - A Tokio task panicked or got cancelled.
 #[allow(clippy::missing_panics_doc)]
 pub async fn fetch_sources(
-    client: &Client,
+    client: &ClientWithMiddleware,
     release: &str,
     args: &Args,
 ) -> anyhow::Result<Vec<SourcePackage>> {
@@ -102,7 +102,7 @@ pub async fn fetch_sources(
 /// - A Tokio task panicked or got cancelled.
 #[allow(clippy::missing_panics_doc)]
 pub async fn fetch_binaries(
-    client: &Client,
+    client: &ClientWithMiddleware,
     release: &str,
     args: &Args,
 ) -> anyhow::Result<Vec<BinaryPackage>> {
@@ -157,7 +157,7 @@ pub async fn fetch_binaries(
 /// When `cache` is `false`, the on-disk cache is not read but a fresh
 /// result is still written so the cache stays warm for future runs.
 async fn fetch_parsed_cached<T, F>(
-    client: &Client,
+    client: &ClientWithMiddleware,
     url: &str,
     cache: bool,
     parse: F,
@@ -192,7 +192,7 @@ where
 /// Perform a GET for a `.gz` URL, optionally sending `If-None-Match`
 /// when `etag` is [`Some`].
 async fn fetch_gz_conditional(
-    client: &Client,
+    client: &ClientWithMiddleware,
     url: &str,
     etag: Option<&str>,
 ) -> anyhow::Result<FetchResult> {
