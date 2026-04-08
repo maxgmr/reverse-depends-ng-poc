@@ -73,7 +73,6 @@ pub fn parse_source_packages(
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;
-    // TODO potential optimization: zero-copy?
     let source_packages: Vec<SourcePackage> = paragraphs
         .into_iter()
         .filter_map(|paragraph| {
@@ -128,7 +127,6 @@ pub fn parse_binary_packages(
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;
-    // TODO potential optimization: zero-copy?
     let binary_packages: Vec<BinaryPackage> = paragraphs
         .into_iter()
         .filter_map(|paragraph| {
