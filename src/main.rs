@@ -51,19 +51,24 @@ async fn run(args: Args) -> anyhow::Result<()> {
     .with(RetryTransientMiddleware::new_with_policy(retry_policy))
     .build();
 
-    let source_packages = if args.need_source_packages() {
-        fetch_sources(&client, release, &args)
-            .await
-            .with_context(|| "Failed to fetch sources")?
-    } else {
-        Vec::new()
-    };
-
-    // If searching for binary packages isn't necessary, then no
-    // searches will be made within fetch_binaries().
-    let binary_packages = fetch_binaries(&client, release, &args)
-        .await
-        .with_context(|| "Failed to fetch binaries")?;
+    let (source_packages, binary_packages) = tokio::try_join!(
+        async {
+            if args.need_source_packages() {
+                fetch_sources(&client, release, &args)
+                    .await
+                    .with_context(|| "Failed to fetch sources")
+            } else {
+                Ok(Vec::new())
+            }
+        },
+        async {
+            // If searching for binary packages isn't necessary, then no
+            // searches will be made within fetch_binaries().
+            fetch_binaries(&client, release, &args)
+                .await
+                .with_context(|| "Failed to fetch binaries")
+        },
+    )?;
 
     // Expand the name in two possible ways:
     //  1. If 'src:' prefix, then replace with all binary names for
