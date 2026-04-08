@@ -52,8 +52,10 @@ impl<'a> ReverseIndex<'a> {
     /// packages.
     #[must_use]
     pub fn build(binaries: &'a [BinaryPackage], sources: &'a [SourcePackage]) -> Self {
-        let mut binary_map: HashMap<&str, Vec<BinRevRef<'_>>> = HashMap::new();
-        let mut source_map: HashMap<&str, Vec<SrcRevRef<'_>>> = HashMap::new();
+        let mut binary_map: HashMap<&str, Vec<BinRevRef<'_>>> =
+            HashMap::with_capacity(binaries.len());
+        let mut source_map: HashMap<&str, Vec<SrcRevRef<'_>>> =
+            HashMap::with_capacity(sources.len());
 
         // Index all four binary relationship types
         for bin in binaries {
