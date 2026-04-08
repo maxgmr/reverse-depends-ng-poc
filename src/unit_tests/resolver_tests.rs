@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::{Args, BinaryPackage, ReverseIndex, SourcePackage, Vendor};
-use std::collections::HashSet;
+use ahash::AHashSet as HashSet;
 
 // source_binaries tests
 

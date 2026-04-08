@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
+use ahash::AHashSet as HashSet;
 use anyhow::{Context, bail};
 use clap::Parser;
 use reqwest_middleware::ClientBuilder;
@@ -109,7 +109,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
             all_results.retain(|_, inner| !inner.is_empty());
         }
 
-        if all_results.get(raw_name).is_none_or(HashMap::is_empty) {
+        if all_results.get(raw_name).is_none_or(|m| m.is_empty()) {
             print_no_rev_deps(&args.package);
             return Ok(());
         }

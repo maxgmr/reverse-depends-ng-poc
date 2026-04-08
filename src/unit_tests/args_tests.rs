@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::Vendor;
-use std::collections::HashSet;
+use ahash::AHashSet as HashSet;
 
 #[test]
 fn selected_components_empty_returns_all_ubuntu() {

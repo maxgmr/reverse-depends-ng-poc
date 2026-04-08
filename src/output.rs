@@ -1,11 +1,9 @@
 //! This module contains all functionality responsible for formatting
 //! the output.
 
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Write,
-    hash::BuildHasher,
-};
+use std::{fmt::Write, hash::BuildHasher};
+
+use ahash::{AHashMap as HashMap, AHashSet as HashSet};
 
 use crate::RevDepEntry;
 

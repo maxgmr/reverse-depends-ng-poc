@@ -1,10 +1,9 @@
 //! This module contains CLI argument handling.
 
-use std::collections::HashSet;
+use ahash::AHashSet as HashSet;
+use clap::Parser;
 
 use crate::{Vendor, detect_devel_release};
-
-use clap::Parser;
 
 const ARCH_DEFAULT: &str = "any";
 const DEFAULT_DEPTH: usize = 10;

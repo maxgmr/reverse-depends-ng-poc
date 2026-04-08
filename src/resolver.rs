@@ -2,10 +2,9 @@
 //! archive data, i.e., slices of [`BinaryPackage`]s and
 //! [`SourcePackage`]s.
 
-use std::{
-    collections::{HashMap, HashSet},
-    hash::BuildHasher,
-};
+use std::hash::BuildHasher;
+
+use ahash::{AHashMap as HashMap, AHashSet as HashSet};
 
 use crate::{
     Args, BinaryPackage, SourcePackage, extract_name, parse_dep_groups, parse_dep_names,
