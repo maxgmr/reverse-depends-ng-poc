@@ -19,7 +19,7 @@ const MAX_CONCURRENT: usize = 16;
 
 /// The different types of responses from an archive query.
 enum FetchResult {
-    /// HTTP 200: decompressed body and optional ETag from response
+    /// HTTP 200: decompressed body and optional `ETag` from response
     Fresh { text: String, etag: Option<String> },
     /// HTTP 304: the server confirmed the cached copy is still current
     NotModified,
