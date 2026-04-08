@@ -46,7 +46,7 @@ pub struct Args {
     pub build_depends: bool,
     /// Query dependencies in ARCH, or `source` for build dependencies
     /// (repeatable)
-    #[arg(short, long, default_value = ARCH_DEFAULT)]
+    #[arg(short, long = "arch", default_value = ARCH_DEFAULT)]
     pub arches: Vec<String>,
     /// Skip ports architectures
     #[arg(long = "no-ports", action = clap::ArgAction::SetFalse)]
