@@ -2,7 +2,10 @@
 //! archive data, i.e., slices of [`BinaryPackage`]s and
 //! [`SourcePackage`]s.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasher,
+};
 
 use crate::{
     Args, BinaryPackage, SourcePackage, extract_name, parse_dep_groups, parse_dep_names,
@@ -194,11 +197,10 @@ pub fn source_binaries(sources: &[SourcePackage], source_name: &str) -> HashSet<
 
 /// Return all virtual package names provided by packages in
 /// `target_names`.
-#[allow(clippy::implicit_hasher)]
 #[must_use]
-pub fn binaries_provides(
+pub fn binaries_provides<S: BuildHasher>(
     binaries: &[BinaryPackage],
-    target_names: &HashSet<String>,
+    target_names: &HashSet<String, S>,
 ) -> HashSet<String> {
     binaries
         .iter()
@@ -216,10 +218,9 @@ pub fn binaries_provides(
 /// Returns the sorted list of [`RevDepEntry`] values, grouped by their
 /// relationship group name; e.g., `"Reverse-Depends"`.
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn find_rev_deps<'a>(
+pub fn find_rev_deps<'a, S: BuildHasher>(
     index: &'a ReverseIndex<'a>,
-    target_names: &HashSet<&str>,
+    target_names: &HashSet<&str, S>,
     args: &Args,
 ) -> HashMap<&'static str, Vec<RevDepEntry<'a>>> {
     // Accumulator:
@@ -307,17 +308,16 @@ pub fn find_rev_deps<'a>(
 /// display layer can then walk the tree recursively by looking up each
 /// package's own entry.
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn find_rev_deps_recursive<'a>(
+pub fn find_rev_deps_recursive<'a, S: BuildHasher + Clone>(
     index: &'a ReverseIndex<'a>,
     queried_package: &'a str,
-    initial_targets: &HashSet<&str>,
+    initial_targets: &HashSet<&str, S>,
     args: &Args,
 ) -> HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>> {
     let mut all_results = HashMap::new();
 
     // Pre-populate visited with initial targets
-    let mut visited: HashSet<&str> = initial_targets.clone();
+    let mut visited: HashSet<&str, S> = initial_targets.clone();
 
     // Depth 0: query all initial targets together. Identical to non-
     // recursive mode.

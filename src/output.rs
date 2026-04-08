@@ -4,6 +4,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Write,
+    hash::BuildHasher,
 };
 
 use crate::RevDepEntry;
@@ -39,10 +40,9 @@ const PADDING: usize = 30;
 /// Packages without architectures listed are reverse-dependencies in: amd64, arm64, i386, ...
 /// ```
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn verbose_output(
+pub fn verbose_output<S: BuildHasher>(
     queried_package: &str,
-    result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>,
+    result: &HashMap<&'static str, Vec<RevDepEntry<'_>>, S>,
 ) -> String {
     let mut output = String::new();
     let all_arches: HashSet<&str> = result
@@ -62,10 +62,9 @@ pub fn verbose_output(
 /// Each root-level entry is immediately followed by its transitive
 /// reverse dependency subtree, indented accordingly.
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn verbose_output_recursive<'a>(
+pub fn verbose_output_recursive<'a, S: BuildHasher>(
     queried_package: &str,
-    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>, S>, S>,
 ) -> String {
     let mut output = String::new();
 
@@ -115,8 +114,9 @@ pub fn verbose_output_recursive<'a>(
 /// All relationship groups are merged; each package name appears at
 /// most once.
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn list_output(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> String {
+pub fn list_output<S: BuildHasher>(
+    result: &HashMap<&'static str, Vec<RevDepEntry<'_>>, S>,
+) -> String {
     collect_and_sort_names(
         result
             .values()
@@ -130,9 +130,8 @@ pub fn list_output(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> Stri
 /// All relationship groups are merged and all transitive relationships
 /// are flattened.
 #[must_use]
-#[allow(clippy::implicit_hasher)]
-pub fn list_output_recursive<'a>(
-    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+pub fn list_output_recursive<'a, S: BuildHasher>(
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>, S>, S>,
 ) -> String {
     collect_and_sort_names(
         all_results
@@ -153,8 +152,8 @@ fn collect_and_sort_names<'a>(iter: impl Iterator<Item = &'a str>) -> String {
 /// [`verbose_output`] and [`verbose_output_recursive`]. The only
 /// difference is the recursive version needs to call `render_subtree`
 /// after each entry, which can be passed as a closure to this function.
-fn write_sections<'a, F>(
-    result: &HashMap<&'static str, Vec<RevDepEntry<'a>>>,
+fn write_sections<'a, F, S: BuildHasher>(
+    result: &HashMap<&'static str, Vec<RevDepEntry<'a>>, S>,
     all_arches: &HashSet<&str>,
     queried_package: &str,
     output: &mut String,
@@ -185,9 +184,9 @@ fn write_sections<'a, F>(
 /// `package`, indented according to `depth`. Children are rendered
 /// across all relationship trees without sub-headers to keep the tree
 /// readable.
-fn render_subtree<'a>(
+fn render_subtree<'a, S: BuildHasher>(
     package: &str,
-    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>>>,
+    all_results: &HashMap<&'a str, HashMap<&'static str, Vec<RevDepEntry<'a>>, S>, S>,
     all_arches: &HashSet<&str>,
     visited: &mut HashSet<&'a str>,
     depth: usize,
@@ -222,7 +221,9 @@ fn render_subtree<'a>(
 /// Return the result's field names in the original display order.
 ///
 /// Any fields missing from [`FIELD_ORDER`] are appended alphabetically.
-fn ordered_fields(result: &HashMap<&'static str, Vec<RevDepEntry<'_>>>) -> Vec<&'static str> {
+fn ordered_fields<S: BuildHasher>(
+    result: &HashMap<&'static str, Vec<RevDepEntry<'_>>, S>,
+) -> Vec<&'static str> {
     let mut ordered: Vec<&'static str> = FIELD_ORDER
         .iter()
         .copied()
