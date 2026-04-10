@@ -3,8 +3,8 @@
 use std::{io::Read, sync::Arc};
 
 use crate::{
-    Args, BinaryPackage, SourcePackage, load_cache, parse_binary_packages, parse_source_packages,
-    save_cache,
+    ArchSearchCombo, Args, BinaryPackage, SourcePackage, load_cache, parse_binary_packages,
+    parse_source_packages, save_cache,
 };
 
 use anyhow::Context;
@@ -114,27 +114,32 @@ pub async fn fetch_binaries(
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT));
     let mut handles = Vec::new();
 
-    for pocket in args.selected_pockets()? {
-        for component in args.selected_components()? {
-            for search_combo in &search_combos {
-                let archive_base = search_combo.base_url;
-                let arch = search_combo.arch;
+    for search_combo in search_combos {
+        for pocket in args.selected_pockets()? {
+            for component in args.selected_components()? {
+                let ArchSearchCombo { base_url, arch } = search_combo;
                 let url = format!(
-                    "{archive_base}/dists/{release}{pocket}/{component}/binary-{arch}/Packages.gz"
+                    "{base_url}/dists/{release}{pocket}/{component}/binary-{arch}/Packages.gz"
                 );
-                let client = client.clone();
-                let sem = Arc::clone(&sem);
-                let cache = args.cache;
 
-                handles.push(tokio::spawn(async move {
-                    let _permit = sem.acquire().await.expect("semaphore closed");
-                    fetch_parsed_cached(&client, &url, cache, |text| {
+                let handle = tokio::spawn({
+                    let client = client.clone();
+                    let sem = Arc::clone(&sem);
+                    let cache = args.cache;
+
+                    async move {
+                        // Naming the variable ensures its scope is the whole block
+                        let _permit = sem.acquire().await.context("semaphore closed")?;
+                        fetch_parsed_cached(&client, &url, cache, |text| {
                         parse_binary_packages(text, arch, component, pocket).with_context(|| {
                             format!("Failed to parse Packages.gz for {component} in {pocket} for arch {arch}")
                         })
                     })
                     .await
-                }));
+                    }
+                });
+
+                handles.push(handle);
             }
         }
     }

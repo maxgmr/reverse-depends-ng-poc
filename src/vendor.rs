@@ -1,6 +1,10 @@
 //! This module contains the [`Vendor`] enum, which defines the info
 //! for the different supported archives.
 
+// TODO replace Debian and Ubuntu releases with an enum
+
+// TODO look into [phf](https://docs.rs/phf/latest/phf/) mapping
+// TODO could use match statements as an alternative
 /// The different vendors supported by this program.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 #[allow(missing_docs)]
@@ -28,7 +32,6 @@ impl Vendor {
         }
     }
 
-    // TODO get this dynamically from the archive instead
     /// Get the architectures supported by this vendor's primary archive.
     #[must_use]
     pub fn primary_arches(&self) -> &'static [&'static str] {
@@ -38,7 +41,7 @@ impl Vendor {
         }
     }
 
-    // TODO get this dynamically from the archive instead
+    // TODO change to a "filter" pattern which returns an Option instead
     /// Get the architectures supported by the given release's ports archive.
     #[must_use]
     pub fn ports_arches(&self, release: &str) -> &'static [&'static str] {

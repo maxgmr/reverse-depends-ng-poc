@@ -34,7 +34,7 @@ async fn main() {
 async fn run(args: Args) -> anyhow::Result<()> {
     // If the user didn't specify a release, try to determine the
     // current devel release using `distro-info`.
-    let release = match &args.release {
+    let release: &str = match &args.release {
         Some(r) => r,
         None => &detect_devel_release()?,
     };

@@ -256,7 +256,7 @@ impl Args {
 
 /// A specific set of values to use in a binary package search: the
 /// base archive URL of the search and the associated architecture.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ArchSearchCombo {
     /// The base archive URL of the search.
     pub base_url: &'static str,
