@@ -1,14 +1,12 @@
 //! # reverse-depends-ng-poc
 //!
 //! Proof of concept for a modernized reverse-depends.
-#![warn(
-    missing_docs,
-    missing_debug_implementations,
-    rust_2018_idioms,
-    clippy::all,
-    clippy::pedantic,
-    clippy::todo
-)]
+#![warn(missing_docs)]
+#![warn(missing_debug_implementations)]
+#![warn(rust_2018_idioms)]
+#![warn(clippy::all)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::todo)]
 
 use anyhow::{Context, anyhow};
 
