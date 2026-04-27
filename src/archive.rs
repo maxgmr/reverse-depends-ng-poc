@@ -3,8 +3,8 @@
 use std::{io::Read, sync::Arc};
 
 use crate::{
-    ArchSearchCombo, Args, BinaryPackage, SourcePackage, load_cache, parse_binary_packages,
-    parse_source_packages, save_cache,
+    ArchSearchCombo, Args, BinaryPackage, SourcePackage, cache::ETag, load_cache,
+    parse_binary_packages, parse_source_packages, save_cache,
 };
 
 use anyhow::Context;
@@ -19,8 +19,8 @@ const MAX_CONCURRENT: usize = 16;
 
 /// The different types of responses from an archive query.
 enum FetchResult {
-    /// HTTP 200: decompressed body and optional `ETag` from response
-    Fresh { text: String, etag: Option<String> },
+    /// HTTP 200: decompressed body and optional [`ETag`] from response
+    Fresh { text: String, etag: Option<ETag> },
     /// HTTP 304: the server confirmed the cached copy is still current
     NotModified,
     /// HTTP 404: resource does not exist for this release/component
@@ -178,17 +178,20 @@ where
     };
     let cached_etag = cached
         .as_ref()
-        .and_then(|(etag, _): &(Option<String>, Vec<T>)| etag.as_deref());
+        .and_then(|(etag, _): &(Option<ETag>, Vec<T>)| etag.as_ref());
 
     match fetch_gz_conditional(client, url, cached_etag)
         .await
         .with_context(|| format!("Failed to fetch {url}"))?
     {
         FetchResult::NotFound => Ok(Vec::new()),
-        FetchResult::NotModified => Ok(cached.unwrap().1),
+        FetchResult::NotModified => {
+            let (_, ret) = cached.unwrap();
+            Ok(ret)
+        }
         FetchResult::Fresh { text, etag } => {
             let data = parse(&text)?;
-            save_cache(url, etag.as_deref(), &data);
+            save_cache(url, etag.as_ref(), &data);
             Ok(data)
         }
     }
@@ -199,7 +202,7 @@ where
 async fn fetch_gz_conditional(
     client: &ClientWithMiddleware,
     url: &str,
-    etag: Option<&str>,
+    etag: Option<&ETag>,
 ) -> anyhow::Result<FetchResult> {
     let mut req = client.get(url);
     if let Some(etag) = etag {
@@ -219,8 +222,7 @@ async fn fetch_gz_conditional(
     let etag = response
         .headers()
         .get(reqwest::header::ETAG)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_owned);
+        .and_then(|v| ETag::try_from(v).ok());
     if etag.is_none() {
         eprintln!("Warning: {url} did not return an ETag header");
     }

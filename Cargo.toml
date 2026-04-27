@@ -20,6 +20,7 @@ clap = { version = "4.6", features = ["derive"] }
 deb822-fast = "0.2"
 flate2 = { version = "1.1", features = ["zlib-rs"], default-features = false }
 futures = "0.3"
+http = "1.4"
 postcard = { version = "1.1", features = ["use-std"] }
 reqwest = { version = "0.13", default-features = false }
 reqwest-middleware = "0.5.1"

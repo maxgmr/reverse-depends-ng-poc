@@ -912,6 +912,7 @@ dependencies = [
  "deb822-fast",
  "flate2",
  "futures",
+ "http",
  "postcard",
  "reqwest",
  "reqwest-middleware",

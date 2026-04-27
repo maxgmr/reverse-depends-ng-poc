@@ -3,18 +3,35 @@
 
 use std::path::PathBuf;
 
+use reqwest::header::{HeaderValue, ToStrError};
 use serde::{Deserialize, Serialize};
 
 /// Increment this whenever the cache file layout changes so stale
 /// entries are automatically invalidated.
 const CACHE_VERSION: u32 = 1;
 
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub(crate) struct ETag(String);
+impl TryFrom<&ETag> for HeaderValue {
+    type Error = http::Error;
+    fn try_from(value: &ETag) -> http::Result<Self> {
+        let ETag(s) = value;
+        Ok(HeaderValue::try_from(s)?)
+    }
+}
+impl TryFrom<&HeaderValue> for ETag {
+    type Error = ToStrError;
+    fn try_from(value: &HeaderValue) -> Result<Self, ToStrError> {
+        Ok(ETag(value.to_str()?.to_string()))
+    }
+}
+
 /// A single entry for the cache, containing its layout version and HTTP
 /// `ETag`.
 #[derive(Debug, Clone, Deserialize)]
 struct CacheEntry<T> {
     version: u32,
-    etag: Option<String>,
+    etag: Option<ETag>,
     data: T,
 }
 
@@ -23,7 +40,7 @@ struct CacheEntry<T> {
 #[derive(Debug, Clone, Serialize)]
 struct CacheEntryRef<'a, T> {
     version: u32,
-    etag: Option<&'a str>,
+    etag: Option<&'a ETag>,
     data: &'a T,
 }
 
@@ -34,7 +51,7 @@ struct CacheEntryRef<'a, T> {
 /// All I/O errors are silently ignored.
 pub(crate) fn load_cache<T: for<'de> Deserialize<'de>>(
     archive_url: &str,
-) -> Option<(Option<String>, T)> {
+) -> Option<(Option<ETag>, T)> {
     let path = cache_path(archive_url)?;
     let bytes = std::fs::read(path).ok()?;
     let entry: CacheEntry<T> = postcard::from_bytes(&bytes).ok()?;
@@ -48,7 +65,7 @@ pub(crate) fn load_cache<T: for<'de> Deserialize<'de>>(
 ///
 /// All I/O errors are silently ignored -- a broken cache should never
 /// crash the tool.
-pub(crate) fn save_cache<T: Serialize>(archive_url: &str, etag: Option<&str>, data: &T) {
+pub(crate) fn save_cache<T: Serialize>(archive_url: &str, etag: Option<&ETag>, data: &T) {
     let Some(path) = cache_path(archive_url) else {
         eprintln!("Warning: failed to determine cache path; is $XDG_CACHE_HOME or $HOME set?");
         return;
