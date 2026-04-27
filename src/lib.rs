@@ -17,11 +17,20 @@ mod platform_info;
 mod resolver;
 mod vendor;
 
-pub use self::archive::*;
-pub use self::args::*;
+pub use self::archive::{fetch_binaries, fetch_sources};
+pub(crate) use self::args::ArchSearchCombo;
+pub use self::args::Args;
 pub(crate) use self::cache::{load_cache, save_cache};
-pub use self::output::*;
-pub use self::parsing::*;
+pub use self::output::{
+    list_output, list_output_recursive, verbose_output, verbose_output_recursive,
+};
+pub(crate) use self::parsing::{
+    BinaryPackage, SourcePackage, extract_name, parse_binary_packages, parse_dep_groups,
+    parse_dep_names, parse_provides, parse_source_packages,
+};
 pub use self::platform_info::detect_devel_release;
-pub use self::resolver::*;
-pub use self::vendor::*;
+pub(crate) use self::resolver::RevDepEntry;
+pub use self::resolver::{
+    ReverseIndex, binaries_provides, find_rev_deps, find_rev_deps_recursive, source_binaries,
+};
+pub(crate) use self::vendor::Vendor;
