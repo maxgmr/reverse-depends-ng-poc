@@ -3,7 +3,7 @@
 use std::{io::Read, sync::Arc};
 
 use crate::{
-    ArchSearchCombo, Args, BinaryPackage, SourcePackage, cache::ETag, load_cache,
+    ArchSearchCombo, Args, BinaryPackage, Result, SourcePackage, cache::ETag, load_cache,
     parse_binary_packages, parse_source_packages, save_cache,
 };
 
@@ -34,7 +34,7 @@ enum FetchResult {
 ///
 /// # Errors
 ///
-/// This function returns an [`anyhow::Error`] in the following
+/// This function returns a [`crate::Error`] in the following
 /// situations:
 ///
 /// - No valid components or pockets for the given distro were given.
@@ -47,7 +47,7 @@ pub async fn fetch_sources(
     client: &ClientWithMiddleware,
     release: &str,
     args: &Args,
-) -> anyhow::Result<Vec<SourcePackage>> {
+) -> Result<Vec<SourcePackage>> {
     let sem = Arc::new(Semaphore::new(MAX_CONCURRENT));
     let mut handles = Vec::new();
 
@@ -92,7 +92,7 @@ pub async fn fetch_sources(
 ///
 /// # Errors
 ///
-/// This function returns an [`anyhow::Error`] in the following
+/// This function returns a [`crate::Error`] in the following
 /// situations:
 ///
 /// - No valid components or pockets for the given distro were given.
@@ -105,7 +105,7 @@ pub async fn fetch_binaries(
     client: &ClientWithMiddleware,
     release: &str,
     args: &Args,
-) -> anyhow::Result<Vec<BinaryPackage>> {
+) -> Result<Vec<BinaryPackage>> {
     let search_combos = args.needed_arch_searches(release);
     if search_combos.is_empty() {
         return Ok(Vec::new());
@@ -166,10 +166,10 @@ async fn fetch_parsed_cached<T, F>(
     url: &str,
     cache: bool,
     parse: F,
-) -> anyhow::Result<Vec<T>>
+) -> Result<Vec<T>>
 where
     T: Serialize + for<'de> Deserialize<'de>,
-    F: FnOnce(&str) -> anyhow::Result<Vec<T>>,
+    F: FnOnce(&str) -> Result<Vec<T>>,
 {
     let cached = if cache {
         load_cache::<Vec<T>>(url)
@@ -203,7 +203,7 @@ async fn fetch_gz_conditional(
     client: &ClientWithMiddleware,
     url: &str,
     etag: Option<&ETag>,
-) -> anyhow::Result<FetchResult> {
+) -> Result<FetchResult> {
     let mut req = client.get(url);
     if let Some(etag) = etag {
         req = req.header(reqwest::header::IF_NONE_MATCH, etag);

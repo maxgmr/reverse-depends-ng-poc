@@ -5,6 +5,8 @@ use anyhow::Context;
 use deb822_fast::borrowed::BorrowedParser;
 use serde::{Deserialize, Serialize};
 
+use crate::Result;
+
 /// A source package from the archive along with all its build dependencies.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourcePackage {
@@ -61,7 +63,7 @@ pub struct BinaryPackage {
 ///
 /// # Errors
 ///
-/// This function returns an [`anyhow::Error`] in the following
+/// This function returns a [`crate::Error`] in the following
 /// situations:
 ///
 /// - The text is unparseable in the DEB822 format.
@@ -69,7 +71,7 @@ pub fn parse_source_packages(
     content: &str,
     component: &'static str,
     pocket: &'static str,
-) -> anyhow::Result<Vec<SourcePackage>> {
+) -> Result<Vec<SourcePackage>> {
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;
@@ -114,7 +116,7 @@ pub fn parse_source_packages(
 ///
 /// # Errors
 ///
-/// This function returns an [`anyhow::Error`] in the following
+/// This function returns a [`crate::Error`] in the following
 /// situations:
 ///
 /// - The text is unparseable in the DEB822 format.
@@ -123,7 +125,7 @@ pub fn parse_binary_packages(
     arch: &'static str,
     component: &'static str,
     pocket: &'static str,
-) -> anyhow::Result<Vec<BinaryPackage>> {
+) -> Result<Vec<BinaryPackage>> {
     let paragraphs = BorrowedParser::new(content)
         .parse_all()
         .with_context(|| "Failed to parse deb822 format")?;

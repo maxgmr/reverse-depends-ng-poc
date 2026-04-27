@@ -2,15 +2,16 @@
 
 use anyhow::{Context, anyhow};
 
+use crate::Result;
+
 /// Detect the current development release by using
 /// [`distro-info(1)`](https://manpages.debian.org/unstable/distro-info/distro-info.1.en.html).
 ///
 /// # Errors
 ///
-/// Return an [`anyhow::Error`] if the underlying `distro-info` command
-/// fails, returns a non-zero exit code, or produces invalid UTF-8
-/// output.
-pub fn detect_devel_release() -> anyhow::Result<String> {
+/// This function returns a [`crate::Error`] if the underlying
+/// `distro-info` command fails.
+pub fn detect_devel_release() -> Result<String> {
     let output = std::process::Command::new("distro-info")
         .arg("--devel")
         .output()

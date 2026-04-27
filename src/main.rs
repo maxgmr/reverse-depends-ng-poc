@@ -7,9 +7,9 @@ use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{RetryTransientMiddleware, policies::ExponentialBackoff};
 
 use reverse_depends_ng_poc::{
-    Args, ReverseIndex, binaries_provides, detect_devel_release, fetch_binaries, fetch_sources,
-    find_rev_deps, find_rev_deps_recursive, list_output, list_output_recursive, source_binaries,
-    verbose_output, verbose_output_recursive,
+    Args, Result, ReverseIndex, binaries_provides, detect_devel_release, fetch_binaries,
+    fetch_sources, find_rev_deps, find_rev_deps_recursive, list_output, list_output_recursive,
+    source_binaries, verbose_output, verbose_output_recursive,
 };
 
 #[cfg(feature = "jemalloc")]
@@ -31,7 +31,7 @@ async fn main() {
     }
 }
 
-async fn run(args: Args) -> anyhow::Result<()> {
+async fn run(args: Args) -> Result<()> {
     // If the user didn't specify a release, try to determine the
     // current devel release using `distro-info`.
     let release: &str = match &args.release {

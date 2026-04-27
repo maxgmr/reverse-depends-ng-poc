@@ -3,7 +3,7 @@
 use ahash::AHashSet as HashSet;
 use clap::Parser;
 
-use crate::{Vendor, detect_devel_release};
+use crate::{Result, Vendor, detect_devel_release};
 
 const ARCH_DEFAULT: &str = "any";
 const DEFAULT_DEPTH: usize = 10;
@@ -88,9 +88,9 @@ impl Args {
     ///
     /// # Errors
     ///
-    /// This function returns an [`anyhow::Error`] if none of the
+    /// This function returns a [`crate::Error`] if none of the
     /// provided components exist in the archive.
-    pub fn selected_components(&self) -> anyhow::Result<Vec<&'static str>> {
+    pub fn selected_components(&self) -> Result<Vec<&'static str>> {
         if self.components.is_empty() {
             return Ok(self.vendor.components().to_vec());
         }
@@ -123,10 +123,10 @@ impl Args {
     ///
     /// # Errors
     ///
-    /// This function returns an [`anyhow::Error`] if none of the
+    /// This function returns a [`crate::Error`] if none of the
     /// provided pockets exist in the archive, or if there is a failure
     /// when trying to detect the current devel release.
-    pub fn selected_pockets(&self) -> anyhow::Result<Vec<&'static str>> {
+    pub fn selected_pockets(&self) -> Result<Vec<&'static str>> {
         let is_devel = self.release.is_none() || self.release == Some(detect_devel_release()?);
         #[allow(clippy::used_underscore_items)]
         self._selected_pockets(is_devel)
@@ -134,7 +134,7 @@ impl Args {
 
     /// Helper function for [`Self::selected_pockets`] to make unit
     /// tests possible without querying the devel release.
-    fn _selected_pockets(&self, is_devel: bool) -> anyhow::Result<Vec<&'static str>> {
+    fn _selected_pockets(&self, is_devel: bool) -> Result<Vec<&'static str>> {
         // Select all pockets except proposed if no pocket args given,
         // also enabling proposed if --proposed is given
         //

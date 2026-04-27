@@ -34,3 +34,8 @@ pub use self::resolver::{
     source_binaries,
 };
 pub use self::vendor::Vendor;
+
+/// A result which can be returned by various functions in this crate.
+pub type Result<T, E = Error> = anyhow::Result<T, E>;
+/// The default error type for this crate's [`Result`].
+pub type Error = anyhow::Error;
