@@ -16,7 +16,7 @@ pub enum Vendor {
 impl Vendor {
     /// Get this vendor's primary archive URL.
     #[must_use]
-    pub fn archive(&self) -> &'static str {
+    pub fn archive(self) -> &'static str {
         match self {
             Self::Debian => "http://ftp.debian.org/debian",
             Self::Ubuntu => "http://archive.ubuntu.com/ubuntu",
@@ -25,7 +25,7 @@ impl Vendor {
 
     /// Get this vendor's ports archive URL.
     #[must_use]
-    pub fn ports(&self) -> &'static str {
+    pub fn ports(self) -> &'static str {
         match self {
             Self::Debian => "http://ftp.ports.debian.org/debian-ports",
             Self::Ubuntu => "http://ports.ubuntu.com/ubuntu-ports",
@@ -34,7 +34,7 @@ impl Vendor {
 
     /// Get the architectures supported by this vendor's primary archive.
     #[must_use]
-    pub fn primary_arches(&self) -> &'static [&'static str] {
+    pub fn primary_arches(self) -> &'static [&'static str] {
         match self {
             Self::Debian => &["all", "amd64", "i386"],
             Self::Ubuntu => &["amd64", "amd64v3", "i386"],
@@ -44,7 +44,7 @@ impl Vendor {
     // TODO change to a "filter" pattern which returns an Option instead
     /// Get the architectures supported by the given release's ports archive.
     #[must_use]
-    pub fn ports_arches(&self, release: &str) -> &'static [&'static str] {
+    pub fn ports_arches(self, release: &str) -> &'static [&'static str] {
         match (self, release) {
             (Self::Ubuntu, "trusty") => &["arm64", "armhf", "powerpc", "ppc64el"],
             (Self::Ubuntu, "xenial") => &["arm64", "armhf", "powerpc", "ppc64el", "s390x"],
@@ -55,7 +55,7 @@ impl Vendor {
 
     /// Get the components supported by this vendor.
     #[must_use]
-    pub fn components(&self) -> &'static [&'static str] {
+    pub fn components(self) -> &'static [&'static str] {
         match self {
             Self::Debian => &["main", "contrib", "non-free", "non-free-firmware"],
             Self::Ubuntu => &["main", "restricted", "universe", "multiverse"],
@@ -64,7 +64,7 @@ impl Vendor {
 
     /// Get the pockets supported by this vendor.
     #[must_use]
-    pub fn pockets(&self) -> &'static [&'static str] {
+    pub fn pockets(self) -> &'static [&'static str] {
         match self {
             Self::Debian => &["", "-updates", "-backports"],
             Self::Ubuntu => &["", "-updates", "-security", "-backports"],
