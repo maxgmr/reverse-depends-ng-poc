@@ -306,9 +306,15 @@ pub fn find_rev_deps<'a, S: BuildHasher>(
 /// results. The entry keyed by `queried_package` is the root; the
 /// display layer can then walk the tree recursively by looking up each
 /// package's own entry.
+///
+/// The `binaries` and `sources` args are used in recursive
+/// Build-Depends mode to include binaries created by sources and
+/// binaries provided by binaries respectively.
 #[must_use]
 pub fn find_rev_deps_recursive<'a, S: BuildHasher + Clone>(
     index: &'a ReverseIndex<'a>,
+    binaries: &[BinaryPackage],
+    sources: &[SourcePackage],
     queried_package: &'a str,
     initial_targets: &HashSet<&str, S>,
     args: &Args,
@@ -342,8 +348,21 @@ pub fn find_rev_deps_recursive<'a, S: BuildHasher + Clone>(
         let mut next_frontier = HashSet::new();
 
         for &package in &frontier {
-            let single_target = HashSet::from([package]);
-            let rev_deps = find_rev_deps(index, &single_target, args);
+            let rev_deps = if args.want_build_depends() {
+                // Frontier holds source package names. Bridge to the
+                // binary packages they produce (+ their provides if
+                // requested) before querying the index.
+                let mut targets: HashSet<String> = source_binaries(sources, package);
+                if args.provides {
+                    let provided = binaries_provides(binaries, &targets);
+                    targets.extend(provided);
+                }
+                let target_refs: HashSet<&str> = targets.iter().map(String::as_str).collect();
+                find_rev_deps(index, &target_refs, args)
+            } else {
+                let single_target = HashSet::from([package]);
+                find_rev_deps(index, &single_target, args)
+            };
 
             // Gather newly discovered packages for next depth level
             for entries in rev_deps.values() {

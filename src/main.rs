@@ -107,7 +107,14 @@ async fn run(args: Args) -> Result<bool> {
     let index = ReverseIndex::build(&binary_packages, &source_packages);
 
     if args.recursive {
-        let mut all_results = find_rev_deps_recursive(&index, raw_name, &target_refs, &args);
+        let mut all_results = find_rev_deps_recursive(
+            &index,
+            &binary_packages,
+            &source_packages,
+            raw_name,
+            &target_refs,
+            &args,
+        );
 
         if !args.components.is_empty() {
             let allowed: HashSet<_> = args.components.iter().cloned().collect();

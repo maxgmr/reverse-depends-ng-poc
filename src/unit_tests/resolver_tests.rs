@@ -365,7 +365,14 @@ fn find_rev_deps_testsuite_direct_and_builddeps_match_creates_single_entry() {
 #[test]
 fn find_rev_deps_recursive_root_always_present_even_with_no_results() {
     let index = ReverseIndex::build(&[], &[]);
-    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
+    let result = find_rev_deps_recursive(
+        &index,
+        &[],
+        &[],
+        "libfoo",
+        &targets(&["libfoo"]),
+        &base_args(),
+    );
     assert!(result.contains_key("libfoo"));
     assert!(result["libfoo"].is_empty());
 }
@@ -377,7 +384,14 @@ fn find_rev_deps_recursive_one_level_chain() {
         bin("pkg-b", "amd64", "pkg-a"),
     ];
     let index = ReverseIndex::build(&bins, &[]);
-    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
+    let result = find_rev_deps_recursive(
+        &index,
+        &[],
+        &[],
+        "libfoo",
+        &targets(&["libfoo"]),
+        &base_args(),
+    );
     assert!(
         result["libfoo"]["Reverse-Depends"]
             .iter()
@@ -403,7 +417,7 @@ fn find_rev_deps_recursive_depth_limit_stops_traversal() {
         bin("pkg-c", "amd64", "pkg-b"),
     ];
     let index = ReverseIndex::build(&bins, &[]);
-    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &args);
+    let result = find_rev_deps_recursive(&index, &[], &[], "libfoo", &targets(&["libfoo"]), &args);
     assert!(result.contains_key("libfoo"));
     assert!(result.contains_key("pkg-a")); // depth 1: pkg-a's rev deps processed
     assert!(!result.contains_key("pkg-b")); // depth 2: not reached
@@ -414,9 +428,68 @@ fn find_rev_deps_recursive_package_with_no_rev_deps_omitted_from_results() {
     // pkg-a depends on libfoo but nothing depends on pkg-a
     let bins = vec![bin("pkg-a", "amd64", "libfoo")];
     let index = ReverseIndex::build(&bins, &[]);
-    let result = find_rev_deps_recursive(&index, "libfoo", &targets(&["libfoo"]), &base_args());
+    let result = find_rev_deps_recursive(
+        &index,
+        &[],
+        &[],
+        "libfoo",
+        &targets(&["libfoo"]),
+        &base_args(),
+    );
     assert!(result.contains_key("libfoo")); // root always inserted
     assert!(!result.contains_key("pkg-a")); // no rev deps → omitted
+}
+
+#[test]
+fn find_rev_deps_recursive_bridge_source_binary_provides_chain() {
+    // rust-foo -> librust-foo-dev (provides librust-foo-0.4-dev)
+    // rust-bar Build-Depends on librust-foo-0.4-dev -> librust-bar-dev
+    //   (provides librust-bar-1.7-dev)
+    // baz Build-Depends on librust-bar-1.7-dev
+    let bins = vec![
+        BinaryPackage {
+            provides: "librust-foo-0.4-dev".to_string(),
+            ..bin("librust-foo-dev", "amd64", "")
+        },
+        BinaryPackage {
+            provides: "librust-bar-1.7-dev".to_string(),
+            ..bin("librust-bar-dev", "amd64", "")
+        },
+    ];
+    let srcs = vec![
+        src("rust-foo", "librust-foo-dev", ""),
+        src("rust-bar", "librust-bar-dev", "librust-foo-0.4-dev"),
+        src("baz", "baz", "librust-bar-1.7-dev"),
+    ];
+    let args = Args {
+        provides: true,
+        ..build_args()
+    };
+    let index = ReverseIndex::build(&bins, &srcs);
+
+    // Replicate the provides expansion that main.rs does before
+    // calling find_rev_deps_recursive
+    let mut target_names = HashSet::from(["librust-foo-dev".to_string()]);
+    let provided = binaries_provides(&bins, &target_names);
+    target_names.extend(provided);
+    let target_refs: HashSet<&str> = target_names.iter().map(String::as_str).collect();
+
+    let result =
+        find_rev_deps_recursive(&index, &bins, &srcs, "librust-foo-dev", &target_refs, &args);
+
+    // With --build-depends --provides --recursive, querying
+    // librust-foo-dev should find rust-bar at depth 0 and baz at depth
+    // 2.
+    assert!(
+        result.contains_key("rust-bar"),
+        "rust-bar should appear at depth 0"
+    );
+    assert!(
+        result["rust-bar"]["Reverse-Build-Depends"]
+            .iter()
+            .any(|e| e.package == "baz"),
+        "baz should appear as a reverse build dep of rust-bar's binaries"
+    );
 }
 
 // Helpers
