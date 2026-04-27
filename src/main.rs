@@ -24,14 +24,20 @@ const DEFAULT_MAX_DELAY: Duration = Duration::from_secs(5);
 #[tokio::main(flavor = "multi_thread")]
 async fn main() {
     let args = Args::parse();
-    if let Err(e) = run(args).await {
-        // anyhow's `{e:#}` format prints the full error chain.
-        eprintln!("error: {e:#}");
-        std::process::exit(1);
+    match run(args).await {
+        Ok(true) => {}                      // exit 0 - results found
+        Ok(false) => std::process::exit(1), // exit 1 - no results
+        Err(e) => {
+            // anyhow's `{e:#}` format prints the full error chain.
+            eprintln!("error: {e:#}");
+            std::process::exit(2); // exit 2 - fatal error
+        }
     }
 }
 
-async fn run(args: Args) -> Result<()> {
+/// This function returns `Ok(true)` if results were found and
+/// `Ok(false)` if no results were found.
+async fn run(args: Args) -> Result<bool> {
     // If the user didn't specify a release, try to determine the
     // current devel release using `distro-info`.
     let release: &str = match &args.release {
@@ -116,7 +122,7 @@ async fn run(args: Args) -> Result<()> {
 
         if all_results.get(raw_name).is_none_or(|m| m.is_empty()) {
             print_no_rev_deps(&args.package);
-            return Ok(());
+            return Ok(false);
         }
 
         if args.list {
@@ -137,7 +143,7 @@ async fn run(args: Args) -> Result<()> {
 
         if rev_deps.is_empty() {
             print_no_rev_deps(&args.package);
-            return Ok(());
+            return Ok(false);
         }
 
         if args.list {
@@ -147,7 +153,7 @@ async fn run(args: Args) -> Result<()> {
         }
     }
 
-    Ok(())
+    Ok(true)
 }
 
 // Helper function to print msg when no reverse deps are found.
