@@ -5,6 +5,11 @@
 
 // TODO look into [phf](https://docs.rs/phf/latest/phf/) mapping
 // TODO could use match statements as an alternative
+
+// TODO Alternative option: Could use a config.toml to store these
+//                          values (use `toml` for reading, `toml_edit`
+//                          for writing)
+
 /// The different vendors supported by this program.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, clap::ValueEnum)]
 #[allow(missing_docs)]
