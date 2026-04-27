@@ -64,3 +64,4 @@ $ reverse-depends-ng-poc gawk -p
 - Local apt cache querying
 - Investigation into further performance improvements
 - Ensure cache misses are minimized
+- Return 1 when nothing is matched
